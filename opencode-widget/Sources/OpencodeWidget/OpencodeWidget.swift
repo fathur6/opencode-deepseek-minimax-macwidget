@@ -26,7 +26,9 @@ struct Provider: TimelineProvider {
     }
 }
 
+#if !SWIFT_PACKAGE
 @main
+#endif
 struct OpencodeUsageWidget: Widget {
     let kind: String = "OpencodeUsageWidget"
 
