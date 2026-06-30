@@ -7,17 +7,17 @@ let package = Package(
         .macOS(.v14)
     ],
     targets: [
+        .target(
+            name: "OpencodeWidgetShared"
+        ),
         .executableTarget(
             name: "OpencodeWidgetApp",
+            dependencies: ["OpencodeWidgetShared"],
             resources: [.copy("Resources")]
         ),
         .target(
             name: "OpencodeWidget",
-            dependencies: ["OpencodeWidgetApp"]
-        ),
-        .testTarget(
-            name: "OpencodeWidgetAppTests",
-            dependencies: ["OpencodeWidgetApp"]
+            dependencies: ["OpencodeWidgetShared"]
         ),
     ]
 )
