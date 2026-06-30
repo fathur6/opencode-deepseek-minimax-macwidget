@@ -20,6 +20,11 @@ let package = Package(
             name: "OpencodeWidget",
             dependencies: ["OpencodeWidgetShared"]
         ),
+        .executableTarget(
+            name: "OpencodeUsageTrackerApp",
+            dependencies: ["OpencodeWidgetShared"],
+            linkerSettings: [.linkedLibrary("sqlite3")]
+        ),
         .testTarget(
             name: "OpencodeWidgetSharedTests",
             dependencies: ["OpencodeWidgetShared"]
@@ -32,6 +37,11 @@ let package = Package(
         .testTarget(
             name: "OpencodeWidgetTests",
             dependencies: ["OpencodeWidget"]
+        ),
+        .testTarget(
+            name: "OpencodeUsageTrackerAppTests",
+            dependencies: ["OpencodeUsageTrackerApp"],
+            linkerSettings: [.linkedLibrary("sqlite3")]
         ),
     ]
 )

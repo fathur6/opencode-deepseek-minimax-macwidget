@@ -155,4 +155,51 @@ final class ModelsTests: XCTestCase {
         XCTAssertEqual(decoded.minimax, original.minimax)
         XCTAssertEqual(decoded.dailyUsage, original.dailyUsage)
     }
+
+    // MARK: - MiniMaxModelRemain
+
+    func testMiniMaxModelRemainUsagePercentage() {
+        let remain = MiniMaxModelRemain(
+            modelName: "test-model",
+            currentIntervalTotalCount: 200,
+            currentIntervalRemainingCount: 50,
+            startTime: 0, endTime: 0, remainsTime: 0
+        )
+        XCTAssertEqual(remain.usagePercentage, 0.75, accuracy: 0.001)
+    }
+
+    func testMiniMaxModelRemainZeroTotal() {
+        let remain = MiniMaxModelRemain(
+            modelName: "test-model",
+            currentIntervalTotalCount: 0,
+            currentIntervalRemainingCount: 0,
+            startTime: 0, endTime: 0, remainsTime: 0
+        )
+        XCTAssertEqual(remain.usagePercentage, 0)
+    }
+
+    func testMiniMaxModelRemainFullUsage() {
+        let remain = MiniMaxModelRemain(
+            modelName: "test-model",
+            currentIntervalTotalCount: 100,
+            currentIntervalRemainingCount: 0,
+            startTime: 0, endTime: 0, remainsTime: 0
+        )
+        XCTAssertEqual(remain.usagePercentage, 1.0)
+    }
+
+    // MARK: - ModelUsageRow
+
+    func testModelUsageRowId() {
+        let row = ModelUsageRow(date: "2026-06-30", provider: "deepseek", modelId: "deepseek-v4-flash", tokens: 100, cost: 1.0)
+        XCTAssertEqual(row.id, "2026-06-30-deepseek-deepseek-v4-flash")
+    }
+
+    func testModelUsageRowEquality() {
+        let a = ModelUsageRow(date: "2026-06-30", provider: "deepseek", modelId: "v4", tokens: 100, cost: 1.0)
+        let b = ModelUsageRow(date: "2026-06-30", provider: "deepseek", modelId: "v4", tokens: 100, cost: 1.0)
+        let c = ModelUsageRow(date: "2026-06-30", provider: "deepseek", modelId: "v4", tokens: 200, cost: 2.0)
+        XCTAssertEqual(a, b)
+        XCTAssertNotEqual(a, c)
+    }
 }

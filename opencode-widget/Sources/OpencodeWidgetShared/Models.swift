@@ -44,6 +44,62 @@ public struct MiniMaxUsage: Codable, Equatable {
     }
 }
 
+public struct MiniMaxModelRemain: Codable, Identifiable, Equatable {
+    public var id: String { modelName }
+    public let modelName: String
+    public let currentIntervalTotalCount: Int
+    public let currentIntervalRemainingCount: Int
+    public let startTime: Int64
+    public let endTime: Int64
+    public let remainsTime: Int64
+
+    public init(modelName: String, currentIntervalTotalCount: Int, currentIntervalRemainingCount: Int, startTime: Int64, endTime: Int64, remainsTime: Int64) {
+        self.modelName = modelName
+        self.currentIntervalTotalCount = currentIntervalTotalCount
+        self.currentIntervalRemainingCount = currentIntervalRemainingCount
+        self.startTime = startTime
+        self.endTime = endTime
+        self.remainsTime = remainsTime
+    }
+
+    public var usagePercentage: Double {
+        guard currentIntervalTotalCount > 0 else { return 0 }
+        return Double(currentIntervalTotalCount - currentIntervalRemainingCount) / Double(currentIntervalTotalCount)
+    }
+}
+
+public struct MiniMaxCodingPlanResponse: Codable {
+    public let modelRemains: [MiniMaxModelRemain]
+    public let baseResp: MiniMaxBaseResp?
+
+    public init(modelRemains: [MiniMaxModelRemain], baseResp: MiniMaxBaseResp?) {
+        self.modelRemains = modelRemains
+        self.baseResp = baseResp
+    }
+}
+
+public struct MiniMaxBaseResp: Codable {
+    public let statusCode: Int
+    public let statusMsg: String?
+}
+
+public struct ModelUsageRow: Codable, Identifiable, Equatable {
+    public var id: String { "\(date)-\(provider)-\(modelId)" }
+    public let date: String
+    public let provider: String
+    public let modelId: String
+    public let tokens: Int
+    public let cost: Double
+
+    public init(date: String, provider: String, modelId: String, tokens: Int, cost: Double) {
+        self.date = date
+        self.provider = provider
+        self.modelId = modelId
+        self.tokens = tokens
+        self.cost = cost
+    }
+}
+
 public struct WidgetCache: Codable {
     public let lastUpdated: Date
     public var deepseek: ProviderBalance
