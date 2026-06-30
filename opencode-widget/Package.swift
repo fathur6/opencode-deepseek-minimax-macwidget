@@ -19,5 +19,9 @@ let package = Package(
             name: "OpencodeWidget",
             dependencies: ["OpencodeWidgetShared"]
         ),
+        .testTarget(
+            name: "OpencodeWidgetSharedTests",
+            dependencies: ["OpencodeWidgetShared"]
+        ),
     ]
 )
