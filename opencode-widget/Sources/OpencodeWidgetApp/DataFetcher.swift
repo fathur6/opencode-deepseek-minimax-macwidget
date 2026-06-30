@@ -113,8 +113,10 @@ enum DataFetcher {
             )
         }
 
-        async let dsBalance = fetchDeepseekBalance(apiKey: creds.deepseekKey, session: session)
-        async let mmUsage = fetchMiniMaxUsage(apiKey: creds.minimaxKey, session: session)
+        let dk = creds.deepseekKey
+        let mk = creds.minimaxKey
+        async let dsBalance = fetchDeepseekBalance(apiKey: dk, session: session)
+        async let mmUsage = fetchMiniMaxUsage(apiKey: mk, session: session)
 
         let (deepseekBalance, minimaxUsage) = await (dsBalance, mmUsage)
 

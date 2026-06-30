@@ -1,5 +1,6 @@
 import XCTest
 @testable import OpencodeWidgetApp
+@testable import OpencodeWidgetShared
 
 final class AuthReaderTests: XCTestCase {
     let tempDir = FileManager.default.temporaryDirectory
