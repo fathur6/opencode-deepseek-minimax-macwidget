@@ -16,6 +16,8 @@ targets:
         embed: true
     info:
       path: OpencodeWidgetApp/Info.plist
+      properties:
+        LSUIElement: true
     entitlements:
       path: OpencodeWidgetApp/Entitlements.plist
     settings:
