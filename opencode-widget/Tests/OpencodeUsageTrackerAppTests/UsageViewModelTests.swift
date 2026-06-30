@@ -2,6 +2,7 @@ import XCTest
 @testable import OpencodeUsageTrackerApp
 @testable import OpencodeWidgetShared
 
+@MainActor
 final class UsageViewModelTests: XCTestCase {
     override func setUp() {
         super.setUp()
@@ -12,7 +13,7 @@ final class UsageViewModelTests: XCTestCase {
         NotificationManager.resetAlerts()
     }
 
-    func testInitialStateIsLoading() {
+    func testInitialStateIsLoading() async {
         let vm = UsageViewModel()
         XCTAssertEqual(vm.state, .loading)
     }
