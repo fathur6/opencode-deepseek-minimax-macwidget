@@ -38,6 +38,7 @@ public final class UsageViewModel {
     private let authPath: String
     private let dbPath: String
     @ObservationIgnored nonisolated(unsafe) private var refreshTask: Task<Void, Never>?
+    private var hasLoaded = false
 
     public init(authPath: String = "\(NSHomeDirectory())/.local/share/opencode/auth.json", dbPath: String = "\(NSHomeDirectory())/.local/share/opencode/opencode.db") {
         self.authPath = authPath
@@ -49,6 +50,7 @@ public final class UsageViewModel {
             state = .onboarding
             return
         }
+        _ = try? await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound])
         await refresh()
         startAutoRefresh()
     }
@@ -61,47 +63,50 @@ public final class UsageViewModel {
             return
         }
 
-        state = .loading
+        if !hasLoaded {
+            state = .loading
+        }
 
         let dsKey = creds.deepseekKey
         let mmKey = creds.minimaxKey
 
-        do {
-            async let dsBalance = DeepSeekAPIService.fetchBalance(apiKey: dsKey, session: session)
-            async let mmModels = MiniMaxAPIService.fetchUsage(apiKey: mmKey, session: session)
+        let dsBalance = try? await DeepSeekAPIService.fetchBalance(apiKey: dsKey, session: session)
+        let mmModels = (try? await MiniMaxAPIService.fetchUsage(apiKey: mmKey, session: session)) ?? []
 
-            let usage = DatabaseService.queryUsage(dbPath: effectiveDB)
-            let perModelUsage = DatabaseService.queryPerModelUsage(dbPath: effectiveDB)
+        let usage = DatabaseService.queryUsage(dbPath: effectiveDB)
+        let perModelUsage = DatabaseService.queryPerModelUsage(dbPath: effectiveDB)
 
-            let (balance, models) = try await (dsBalance, mmModels)
-
-            let alerts = NotificationManager.checkThresholds(models: models)
-            for alert in alerts {
-                sendNotification(alert: alert)
-            }
-
-            let data = UsageData(
-                deepseekBalance: balance,
-                minimaxModels: models,
-                dailyUsage: usage,
-                perModelUsage: perModelUsage,
-                lastUpdated: Date()
-            )
-
-            state = .loaded(data)
-            lastRefresh = Date()
-
-            let cache = WidgetCache(
-                lastUpdated: Date(),
-                deepseek: ProviderBalance(balance: balance, currency: "USD"),
-                minimax: ProviderBalance(balance: Double(models.reduce(0) { $0 + $1.currentIntervalRemainingCount }), currency: "USD"),
-                minimaxUsage: MiniMaxUsage(remainingPrompts: models.reduce(0) { $0 + $1.currentIntervalRemainingCount }, totalPrompts: models.reduce(0) { $0 + $1.currentIntervalTotalCount }),
-                dailyUsage: usage
-            )
-            DataStore.save(cache: cache)
-        } catch {
-            state = .error(error.localizedDescription)
+        if dsBalance == nil, mmModels.isEmpty {
+            state = .error("Unable to fetch usage data from any provider")
+            return
         }
+
+        let models = mmModels
+        let alerts = NotificationManager.checkThresholds(models: models)
+        for alert in alerts {
+            sendNotification(alert: alert)
+        }
+
+        let data = UsageData(
+            deepseekBalance: dsBalance,
+            minimaxModels: models,
+            dailyUsage: usage,
+            perModelUsage: perModelUsage,
+            lastUpdated: Date()
+        )
+
+        hasLoaded = true
+        state = .loaded(data)
+        lastRefresh = Date()
+
+        let cache = WidgetCache(
+            lastUpdated: Date(),
+            deepseek: ProviderBalance(balance: dsBalance, currency: "USD"),
+            minimax: ProviderBalance(balance: Double(models.reduce(0) { $0 + $1.currentIntervalRemainingCount }), currency: "USD"),
+            minimaxUsage: MiniMaxUsage(remainingPrompts: models.reduce(0) { $0 + $1.currentIntervalRemainingCount }, totalPrompts: models.reduce(0) { $0 + $1.currentIntervalTotalCount }),
+            dailyUsage: usage
+        )
+        DataStore.save(cache: cache)
     }
 
     public func startAutoRefresh() {

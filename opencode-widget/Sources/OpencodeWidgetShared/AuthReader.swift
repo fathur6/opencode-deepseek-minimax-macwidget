@@ -1,12 +1,17 @@
 import Foundation
 
-struct AuthCredentials {
-    let deepseekKey: String
-    let minimaxKey: String
+public struct AuthCredentials {
+    public let deepseekKey: String
+    public let minimaxKey: String
+
+    public init(deepseekKey: String, minimaxKey: String) {
+        self.deepseekKey = deepseekKey
+        self.minimaxKey = minimaxKey
+    }
 }
 
-enum AuthReader {
-    static func readCredentials(authPath: String = "\(NSHomeDirectory())/.local/share/opencode/auth.json") -> AuthCredentials? {
+public enum AuthReader {
+    public static func readCredentials(authPath: String = "\(NSHomeDirectory())/.local/share/opencode/auth.json") -> AuthCredentials? {
         let url = URL(fileURLWithPath: authPath)
         guard let data = try? Data(contentsOf: url),
               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {

@@ -100,8 +100,10 @@ struct UsageView: View {
     private func aggregateByModel(models: [ModelUsageRow]) -> [(modelId: String, tokens: Int, cost: Double)] {
         var dict: [String: (tokens: Int, cost: Double)] = [:]
         for m in models {
-            dict[m.modelId, default: (0, 0)].tokens += m.tokens
-            dict[m.modelId, default: (0, 0)].cost += m.cost
+            var entry = dict[m.modelId] ?? (tokens: 0, cost: 0)
+            entry.tokens += m.tokens
+            entry.cost += m.cost
+            dict[m.modelId] = entry
         }
         return dict.map { ($0.key, $0.value.tokens, $0.value.cost) }
             .sorted { $0.modelId < $1.modelId }

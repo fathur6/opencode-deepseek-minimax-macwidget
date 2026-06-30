@@ -22,13 +22,13 @@ struct TimelineChart: View {
                         let deepHeight: CGFloat = maxTokens > 0 ? CGFloat(row.deepseekTokens) / CGFloat(maxTokens) * 80 : 0
                         let miniHeight: CGFloat = maxTokens > 0 ? CGFloat(row.minimaxTokens) / CGFloat(maxTokens) * 80 : 0
 
-                        ZStack(alignment: .bottom) {
-                            Rectangle()
-                                .fill(DesignSystem.Color.minimaxAccent.opacity(0.7))
-                                .frame(height: max(miniHeight, 2))
+                        VStack(spacing: 0) {
                             Rectangle()
                                 .fill(DesignSystem.Color.deepseekAccent.opacity(0.7))
                                 .frame(height: max(deepHeight, 2))
+                            Rectangle()
+                                .fill(DesignSystem.Color.minimaxAccent.opacity(0.7))
+                                .frame(height: max(miniHeight, 2))
                         }
                         .frame(width: 32)
                         .cornerRadius(DesignSystem.Radius.sm)

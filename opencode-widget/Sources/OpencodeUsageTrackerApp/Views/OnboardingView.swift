@@ -65,6 +65,6 @@ struct OnboardingView: View {
             .disabled(viewModel.deepseekKey.isEmpty || viewModel.minimaxKey.isEmpty || viewModel.isLoading)
         }
         .padding(DesignSystem.Spacing.xxl)
-        .frame(width: 400, height: 500)
+        .frame(minWidth: 300, minHeight: 400)
     }
 }

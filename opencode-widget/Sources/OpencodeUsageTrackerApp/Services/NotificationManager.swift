@@ -13,6 +13,7 @@ public struct ModelAlert: Equatable {
     public let level: NotificationLevel
 }
 
+@MainActor
 public enum NotificationManager {
     static let warningThreshold: Double = 0.85
     static let criticalThreshold: Double = 0.95
