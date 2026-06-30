@@ -4,16 +4,13 @@ import XCTest
 final class AuthReaderTests: XCTestCase {
     let tempDir = FileManager.default.temporaryDirectory
     var tempAuthPath: String!
-    let defaultAuthPath = AuthReader.authPath
 
     override func setUp() {
         super.setUp()
         tempAuthPath = tempDir.appendingPathComponent("test-auth-\(UUID().uuidString).json").path
-        AuthReader.authPath = tempAuthPath
     }
 
     override func tearDown() {
-        AuthReader.authPath = defaultAuthPath
         if let path = tempAuthPath {
             try? FileManager.default.removeItem(atPath: path)
         }
@@ -30,7 +27,7 @@ final class AuthReaderTests: XCTestCase {
         """
         try json.write(toFile: tempAuthPath, atomically: true, encoding: .utf8)
 
-        let creds = AuthReader.readCredentials()
+        let creds = AuthReader.readCredentials(authPath: tempAuthPath)
 
         XCTAssertNotNil(creds)
         XCTAssertEqual(creds?.deepseekKey, "ds-key-123")
@@ -38,13 +35,13 @@ final class AuthReaderTests: XCTestCase {
     }
 
     func testReturnsNilWhenFileMissing() {
-        let creds = AuthReader.readCredentials()
+        let creds = AuthReader.readCredentials(authPath: tempAuthPath)
         XCTAssertNil(creds)
     }
 
     func testReturnsNilWhenFileIsInvalidJSON() throws {
         try "not-json".write(toFile: tempAuthPath, atomically: true, encoding: .utf8)
-        let creds = AuthReader.readCredentials()
+        let creds = AuthReader.readCredentials(authPath: tempAuthPath)
         XCTAssertNil(creds)
     }
 
@@ -55,7 +52,7 @@ final class AuthReaderTests: XCTestCase {
         }
         """
         try json.write(toFile: tempAuthPath, atomically: true, encoding: .utf8)
-        let creds = AuthReader.readCredentials()
+        let creds = AuthReader.readCredentials(authPath: tempAuthPath)
         XCTAssertNil(creds)
     }
 
@@ -67,7 +64,7 @@ final class AuthReaderTests: XCTestCase {
         }
         """
         try json.write(toFile: tempAuthPath, atomically: true, encoding: .utf8)
-        let creds = AuthReader.readCredentials()
+        let creds = AuthReader.readCredentials(authPath: tempAuthPath)
         XCTAssertNil(creds)
     }
 
@@ -76,7 +73,7 @@ final class AuthReaderTests: XCTestCase {
         ["just", "an", "array"]
         """
         try json.write(toFile: tempAuthPath, atomically: true, encoding: .utf8)
-        let creds = AuthReader.readCredentials()
+        let creds = AuthReader.readCredentials(authPath: tempAuthPath)
         XCTAssertNil(creds)
     }
 }

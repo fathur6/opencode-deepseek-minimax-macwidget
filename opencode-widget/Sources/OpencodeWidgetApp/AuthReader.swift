@@ -6,9 +6,7 @@ struct AuthCredentials {
 }
 
 enum AuthReader {
-    nonisolated(unsafe) static var authPath = "\(NSHomeDirectory())/.local/share/opencode/auth.json"
-
-    static func readCredentials() -> AuthCredentials? {
+    static func readCredentials(authPath: String = "\(NSHomeDirectory())/.local/share/opencode/auth.json") -> AuthCredentials? {
         let url = URL(fileURLWithPath: authPath)
         guard let data = try? Data(contentsOf: url),
               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
