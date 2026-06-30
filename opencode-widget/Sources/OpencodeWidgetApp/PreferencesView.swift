@@ -41,8 +41,8 @@ struct PreferencesView: View {
                 }
             }
         }
-        .padding()
-        .frame(width: 320, height: 260)
+        .formStyle(.grouped)
+        .frame(width: 380, height: 300)
     }
 
     private func updateWidgetCache() {

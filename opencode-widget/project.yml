@@ -30,6 +30,9 @@ targets:
       - Sources/OpencodeWidgetShared
     info:
       path: OpencodeWidget/Info.plist
+      properties:
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
     settings:
-      PRODUCT_BUNDLE_IDENTIFIER: com.opencode.widget.extension
+      PRODUCT_BUNDLE_IDENTIFIER: com.opencode.widget.app.extension
       CODE_SIGN_STYLE: Automatic

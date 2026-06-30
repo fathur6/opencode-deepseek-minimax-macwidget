@@ -4,12 +4,12 @@ import OpencodeWidgetShared
 #endif
 
 struct ContentView: View {
-    @State private var showPreferences = false
+    @Environment(\.openSettings) private var openSettings
 
     var body: some View {
         VStack {
             Button("Preferences...") {
-                showPreferences.toggle()
+                openSettings()
             }
             Button("Refresh Widget Data") {
                 Task {
@@ -22,8 +22,5 @@ struct ContentView: View {
             }
         }
         .padding()
-        .sheet(isPresented: $showPreferences) {
-            PreferencesView()
-        }
     }
 }
