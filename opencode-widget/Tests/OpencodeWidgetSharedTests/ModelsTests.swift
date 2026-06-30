@@ -94,6 +94,52 @@ final class ModelsTests: XCTestCase {
         XCTAssertFalse(cache.isEmpty)
     }
 
+    // MARK: - MiniMaxUsage
+
+    func testMiniMaxUsagePercentage() {
+        let usage = MiniMaxUsage(remainingPrompts: 75, totalPrompts: 100)
+        XCTAssertEqual(usage.percentage, 0.75)
+    }
+
+    func testMiniMaxUsageZeroTotal() {
+        let usage = MiniMaxUsage(remainingPrompts: 0, totalPrompts: 0)
+        XCTAssertEqual(usage.percentage, 0)
+    }
+
+    func testMiniMaxUsageDefaultValues() {
+        let usage = MiniMaxUsage()
+        XCTAssertEqual(usage.remainingPrompts, 0)
+        XCTAssertEqual(usage.totalPrompts, 0)
+    }
+
+    func testMiniMaxUsageEquality() {
+        let a = MiniMaxUsage(remainingPrompts: 50, totalPrompts: 100)
+        let b = MiniMaxUsage(remainingPrompts: 50, totalPrompts: 100)
+        XCTAssertEqual(a, b)
+    }
+
+    func testMiniMaxUsageCodableRoundTrip() throws {
+        let original = MiniMaxUsage(remainingPrompts: 145, totalPrompts: 200)
+        let data = try JSONEncoder().encode(original)
+        let decoded = try JSONDecoder().decode(MiniMaxUsage.self, from: data)
+        XCTAssertEqual(original, decoded)
+    }
+
+    func testWidgetCacheRoundTripIncludesMiniMaxUsage() throws {
+        let original = WidgetCache(
+            lastUpdated: Date(timeIntervalSince1970: 0),
+            deepseek: ProviderBalance(balance: 100.0),
+            minimax: ProviderBalance(balance: nil),
+            minimaxUsage: MiniMaxUsage(remainingPrompts: 145, totalPrompts: 200),
+            dailyUsage: [DailyUsageRow(date: "2026-06-30")]
+        )
+        let data = try JSONEncoder().encode(original)
+        let decoded = try JSONDecoder().decode(WidgetCache.self, from: data)
+        XCTAssertEqual(decoded.minimaxUsage, original.minimaxUsage)
+        XCTAssertEqual(decoded.deepseek, original.deepseek)
+        XCTAssertEqual(decoded.dailyUsage, original.dailyUsage)
+    }
+
     func testWidgetCacheCodableRoundTrip() throws {
         let original = WidgetCache(
             lastUpdated: Date(timeIntervalSince1970: 0),

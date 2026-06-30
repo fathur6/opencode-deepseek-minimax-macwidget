@@ -6,6 +6,7 @@ import OpencodeWidgetShared
 
 enum DataFetcher {
     static let deepseekBalanceURL = URL(string: "https://api.deepseek.com/user/balance")!
+    static let minimaxUsageURL = URL(string: "https://api.minimax.io/v1/api/openplatform/coding_plan/remains")!
 
     static func fetchDeepseekBalance(apiKey: String, session: URLSession = .shared) async -> Double? {
         var request = URLRequest(url: deepseekBalanceURL)
@@ -21,6 +22,23 @@ enum DataFetcher {
             return nil
         }
         return balance
+    }
+
+    static func fetchMiniMaxUsage(apiKey: String, session: URLSession = .shared) async -> MiniMaxUsage? {
+        var request = URLRequest(url: minimaxUsageURL)
+        request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        request.timeoutInterval = 10
+
+        guard let data = try? await session.data(for: request).0,
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let modelRemains = json["modelRemains"] as? [[String: Any]] else {
+            return nil
+        }
+
+        let totalCount = modelRemains.compactMap { $0["currentIntervalTotalCount"] as? Int }.reduce(0, +)
+        let remainingCount = modelRemains.compactMap { $0["currentIntervalRemainingCount"] as? Int }.reduce(0, +)
+
+        return MiniMaxUsage(remainingPrompts: remainingCount, totalPrompts: totalCount)
     }
 
     static func queryUsageFromDB(dbPath: String = "\(NSHomeDirectory())/.local/share/opencode/opencode.db") -> [DailyUsageRow] {
@@ -82,24 +100,30 @@ enum DataFetcher {
     }
 
     static func refreshAll(dbPath: String = "\(NSHomeDirectory())/.local/share/opencode/opencode.db", authPath: String = "\(NSHomeDirectory())/.local/share/opencode/auth.json", session: URLSession = .shared) async -> WidgetCache {
-        let minimaxBalance = readSavedMiniMaxBalance()
         let usage = queryUsageFromDB(dbPath: dbPath)
 
         guard let creds = AuthReader.readCredentials(authPath: authPath) else {
             return WidgetCache(
                 lastUpdated: Date(),
                 deepseek: ProviderBalance(balance: nil, currency: "USD"),
-                minimax: ProviderBalance(balance: minimaxBalance, currency: "USD"),
+                minimax: ProviderBalance(balance: readSavedMiniMaxBalance(), currency: "USD"),
                 dailyUsage: usage
             )
         }
 
-        let deepseekBalance = await fetchDeepseekBalance(apiKey: creds.deepseekKey, session: session)
+        async let dsBalance = fetchDeepseekBalance(apiKey: creds.deepseekKey, session: session)
+        async let mmUsage = fetchMiniMaxUsage(apiKey: creds.minimaxKey, session: session)
+
+        let (deepseekBalance, minimaxUsage) = await (dsBalance, mmUsage)
 
         return WidgetCache(
             lastUpdated: Date(),
             deepseek: ProviderBalance(balance: deepseekBalance, currency: "USD"),
-            minimax: ProviderBalance(balance: minimaxBalance, currency: "USD"),
+            minimax: ProviderBalance(
+                balance: minimaxUsage.map { Double($0.remainingPrompts) } ?? readSavedMiniMaxBalance(),
+                currency: "USD"
+            ),
+            minimaxUsage: minimaxUsage,
             dailyUsage: usage
         )
     }

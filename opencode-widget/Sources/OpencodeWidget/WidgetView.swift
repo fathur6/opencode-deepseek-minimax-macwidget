@@ -28,7 +28,10 @@ struct WidgetView: View {
                 BalanceCardView(
                     title: "MiniMax",
                     balance: entry.cache.minimax.balance,
-                    color: .green
+                    color: .green,
+                    detailText: entry.cache.minimaxUsage.map {
+                        "\($0.remainingPrompts) / \($0.totalPrompts) prompts"
+                    }
                 )
             }
 

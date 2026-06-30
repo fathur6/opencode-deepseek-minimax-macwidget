@@ -4,22 +4,31 @@ import SQLite3
 @testable import OpencodeWidgetShared
 
 class MockURLProtocol: URLProtocol {
-    nonisolated(unsafe) static var responseData: Data?
-    nonisolated(unsafe) static var responseError: Error?
-    nonisolated(unsafe) static var statusCode: Int = 200
+    nonisolated(unsafe) static var responses: [String: (data: Data?, error: Error?, statusCode: Int)] = [:]
+    nonisolated(unsafe) static var defaultData: Data?
+    nonisolated(unsafe) static var defaultError: Error?
+    nonisolated(unsafe) static var defaultStatusCode: Int = 200
 
     override class func canInit(with request: URLRequest) -> Bool { true }
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
 
     override func startLoading() {
-        if let error = Self.responseError {
+        let urlStr = request.url?.absoluteString ?? ""
+        let response: (data: Data?, error: Error?, statusCode: Int)
+        if let match = Self.responses[urlStr] {
+            response = match
+        } else {
+            response = (Self.defaultData, Self.defaultError, Self.defaultStatusCode)
+        }
+
+        if let error = response.error {
             client?.urlProtocol(self, didFailWithError: error)
             client?.urlProtocolDidFinishLoading(self)
             return
         }
-        let response = HTTPURLResponse(url: request.url!, statusCode: Self.statusCode, httpVersion: nil, headerFields: nil)!
-        client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
-        if let data = Self.responseData {
+        let httpResponse = HTTPURLResponse(url: request.url!, statusCode: response.statusCode, httpVersion: nil, headerFields: nil)!
+        client?.urlProtocol(self, didReceive: httpResponse, cacheStoragePolicy: .notAllowed)
+        if let data = response.data {
             client?.urlProtocol(self, didLoad: data)
         }
         client?.urlProtocolDidFinishLoading(self)
@@ -39,9 +48,10 @@ final class DataFetcherTests: XCTestCase {
         tempAuthPath = tmp.appendingPathComponent("testauth-\(id).json").path
         try? FileManager.default.removeItem(atPath: tempDBPath)
         try? FileManager.default.removeItem(atPath: tempAuthPath)
-        MockURLProtocol.responseData = nil
-        MockURLProtocol.responseError = nil
-        MockURLProtocol.statusCode = 200
+        MockURLProtocol.responses = [:]
+        MockURLProtocol.defaultData = nil
+        MockURLProtocol.defaultError = nil
+        MockURLProtocol.defaultStatusCode = 200
     }
 
     override func tearDown() {
@@ -49,8 +59,9 @@ final class DataFetcherTests: XCTestCase {
         try? FileManager.default.removeItem(atPath: tempAuthPath)
         tempDBPath = nil
         tempAuthPath = nil
-        MockURLProtocol.responseData = nil
-        MockURLProtocol.responseError = nil
+        MockURLProtocol.responses = [:]
+        MockURLProtocol.defaultData = nil
+        MockURLProtocol.defaultError = nil
         super.tearDown()
     }
 
@@ -60,8 +71,8 @@ final class DataFetcherTests: XCTestCase {
         let json = """
         {"balance_infos": [{"total_balance": "99.95"}]}
         """
-        MockURLProtocol.responseData = json.data(using: .utf8)
-        MockURLProtocol.statusCode = 200
+        MockURLProtocol.defaultData = json.data(using: .utf8)
+        MockURLProtocol.defaultStatusCode = 200
 
         let config = URLSessionConfiguration.ephemeral
         config.protocolClasses = [MockURLProtocol.self]
@@ -73,8 +84,8 @@ final class DataFetcherTests: XCTestCase {
     }
 
     func testFetchDeepseekBalanceReturnsNilForInvalidJSON() async {
-        MockURLProtocol.responseData = "not-json".data(using: .utf8)
-        MockURLProtocol.statusCode = 200
+        MockURLProtocol.defaultData = "not-json".data(using: .utf8)
+        MockURLProtocol.defaultStatusCode = 200
 
         let config = URLSessionConfiguration.ephemeral
         config.protocolClasses = [MockURLProtocol.self]
@@ -86,7 +97,7 @@ final class DataFetcherTests: XCTestCase {
     }
 
     func testFetchDeepseekBalanceReturnsNilForNetworkError() async {
-        MockURLProtocol.responseError = NSError(domain: "test", code: -1, userInfo: nil)
+        MockURLProtocol.defaultError = NSError(domain: "test", code: -1, userInfo: nil)
 
         let config = URLSessionConfiguration.ephemeral
         config.protocolClasses = [MockURLProtocol.self]
@@ -162,6 +173,70 @@ final class DataFetcherTests: XCTestCase {
         XCTAssertTrue(rows.isEmpty)
     }
 
+    // MARK: - fetchMiniMaxUsage Tests
+
+    func testFetchMiniMaxUsageReturnsUsageOnSuccess() async {
+        let json = """
+        {"modelRemains": [{"currentIntervalTotalCount": 200, "currentIntervalRemainingCount": 145}], "baseResp": {"statusCode": 0}}
+        """
+        MockURLProtocol.defaultData = json.data(using: .utf8)
+        MockURLProtocol.defaultStatusCode = 200
+
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [MockURLProtocol.self]
+        let session = URLSession(configuration: config)
+
+        let usage = await DataFetcher.fetchMiniMaxUsage(apiKey: "test-key", session: session)
+
+        XCTAssertEqual(usage?.totalPrompts, 200)
+        XCTAssertEqual(usage?.remainingPrompts, 145)
+    }
+
+    func testFetchMiniMaxUsageAggregatesMultipleModels() async {
+        let json = """
+        {"modelRemains": [
+            {"currentIntervalTotalCount": 100, "currentIntervalRemainingCount": 80},
+            {"currentIntervalTotalCount": 200, "currentIntervalRemainingCount": 150}
+        ], "baseResp": {"statusCode": 0}}
+        """
+        MockURLProtocol.defaultData = json.data(using: .utf8)
+        MockURLProtocol.defaultStatusCode = 200
+
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [MockURLProtocol.self]
+        let session = URLSession(configuration: config)
+
+        let usage = await DataFetcher.fetchMiniMaxUsage(apiKey: "test-key", session: session)
+
+        XCTAssertEqual(usage?.totalPrompts, 300)
+        XCTAssertEqual(usage?.remainingPrompts, 230)
+    }
+
+    func testFetchMiniMaxUsageReturnsNilForBadJSON() async {
+        MockURLProtocol.defaultData = "not-json".data(using: .utf8)
+        MockURLProtocol.defaultStatusCode = 200
+
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [MockURLProtocol.self]
+        let session = URLSession(configuration: config)
+
+        let usage = await DataFetcher.fetchMiniMaxUsage(apiKey: "test-key", session: session)
+
+        XCTAssertNil(usage)
+    }
+
+    func testFetchMiniMaxUsageReturnsNilForNetworkError() async {
+        MockURLProtocol.defaultError = NSError(domain: "test", code: -1, userInfo: nil)
+
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [MockURLProtocol.self]
+        let session = URLSession(configuration: config)
+
+        let usage = await DataFetcher.fetchMiniMaxUsage(apiKey: "test-key", session: session)
+
+        XCTAssertNil(usage)
+    }
+
     // MARK: - refreshAll Tests
 
     func testRefreshAllReturnsCachedDataWithBalanceAndUsage() async throws {
@@ -173,11 +248,18 @@ final class DataFetcherTests: XCTestCase {
         createDB()
         insertSession(dayOffset: 0, provider: "deepseek", tokensInput: 100, tokensOutput: 50, cost: 1.5, modelString: "{\"providerID\": \"deepseek\"}")
 
-        let balanceJSON = """
+        let dsJSON = """
         {"balance_infos": [{"total_balance": "42.00"}]}
         """
-        MockURLProtocol.responseData = balanceJSON.data(using: .utf8)
-        MockURLProtocol.statusCode = 200
+        let mmJSON = """
+        {"modelRemains": [{"currentIntervalTotalCount": 200, "currentIntervalRemainingCount": 145}], "baseResp": {"statusCode": 0}}
+        """
+        let dsURL = "https://api.deepseek.com/user/balance"
+        let mmURL = "https://api.minimax.io/v1/api/openplatform/coding_plan/remains"
+        MockURLProtocol.responses = [
+            dsURL: (dsJSON.data(using: .utf8), nil, 200),
+            mmURL: (mmJSON.data(using: .utf8), nil, 200),
+        ]
 
         let config = URLSessionConfiguration.ephemeral
         config.protocolClasses = [MockURLProtocol.self]
@@ -186,7 +268,8 @@ final class DataFetcherTests: XCTestCase {
         let cache = await DataFetcher.refreshAll(dbPath: tempDBPath, authPath: tempAuthPath, session: session)
 
         XCTAssertEqual(cache.deepseek.balance, 42.00)
-        XCTAssertNil(cache.minimax.balance)
+        XCTAssertEqual(cache.minimaxUsage?.remainingPrompts, 145)
+        XCTAssertEqual(cache.minimaxUsage?.totalPrompts, 200)
         XCTAssertEqual(cache.dailyUsage.count, 1)
         XCTAssertEqual(cache.dailyUsage[0].deepseekTokens, 150)
     }
@@ -203,6 +286,7 @@ final class DataFetcherTests: XCTestCase {
 
         XCTAssertNil(cache.deepseek.balance)
         XCTAssertNil(cache.minimax.balance)
+        XCTAssertNil(cache.minimaxUsage)
         XCTAssertEqual(cache.dailyUsage.count, 1)
     }
 
@@ -215,6 +299,7 @@ final class DataFetcherTests: XCTestCase {
 
         XCTAssertNil(cache.deepseek.balance)
         XCTAssertNil(cache.minimax.balance)
+        XCTAssertNil(cache.minimaxUsage)
         XCTAssertTrue(cache.dailyUsage.isEmpty)
     }
 

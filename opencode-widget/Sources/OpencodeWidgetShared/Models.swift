@@ -30,16 +30,32 @@ public struct DailyUsageRow: Codable, Identifiable, Equatable {
     public var totalCost: Double { deepseekCost + minimaxCost }
 }
 
+public struct MiniMaxUsage: Codable, Equatable {
+    public var remainingPrompts: Int
+    public var totalPrompts: Int
+
+    public init(remainingPrompts: Int = 0, totalPrompts: Int = 0) {
+        self.remainingPrompts = remainingPrompts
+        self.totalPrompts = totalPrompts
+    }
+
+    public var percentage: Double {
+        totalPrompts > 0 ? Double(remainingPrompts) / Double(totalPrompts) : 0
+    }
+}
+
 public struct WidgetCache: Codable {
     public let lastUpdated: Date
     public var deepseek: ProviderBalance
     public var minimax: ProviderBalance
+    public var minimaxUsage: MiniMaxUsage?
     public var dailyUsage: [DailyUsageRow]
 
-    public init(lastUpdated: Date = Date(), deepseek: ProviderBalance = ProviderBalance(), minimax: ProviderBalance = ProviderBalance(), dailyUsage: [DailyUsageRow] = []) {
+    public init(lastUpdated: Date = Date(), deepseek: ProviderBalance = ProviderBalance(), minimax: ProviderBalance = ProviderBalance(), minimaxUsage: MiniMaxUsage? = nil, dailyUsage: [DailyUsageRow] = []) {
         self.lastUpdated = lastUpdated
         self.deepseek = deepseek
         self.minimax = minimax
+        self.minimaxUsage = minimaxUsage
         self.dailyUsage = dailyUsage
     }
 
