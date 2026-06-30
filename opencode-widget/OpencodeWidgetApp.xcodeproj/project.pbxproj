@@ -313,6 +313,7 @@
 		44027D139C25BFEAD27B2685 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = OpencodeWidget/Entitlements.plist;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				INFOPLIST_FILE = OpencodeWidget/Info.plist;
@@ -402,6 +403,7 @@
 		D60C8DEEF223463119143962 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = OpencodeWidget/Entitlements.plist;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				INFOPLIST_FILE = OpencodeWidget/Info.plist;

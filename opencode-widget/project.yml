@@ -36,3 +36,5 @@ targets:
     settings:
       PRODUCT_BUNDLE_IDENTIFIER: com.opencode.widget.app.extension
       CODE_SIGN_STYLE: Automatic
+    entitlements:
+      path: OpencodeWidget/Entitlements.plist
