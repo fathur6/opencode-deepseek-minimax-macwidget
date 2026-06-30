@@ -11,6 +11,9 @@ targets:
     sources:
       - Sources/OpencodeWidgetApp
       - Sources/OpencodeWidgetShared
+    dependencies:
+      - target: OpencodeWidget
+        embed: true
     info:
       path: OpencodeWidgetApp/Info.plist
     entitlements:

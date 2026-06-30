@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		05802E843E87C037829645EA /* CostFooterView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2991084E74F04E70CFA99861 /* CostFooterView.swift */; };
 		22D15FDDF046656C043E29E6 /* WidgetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8AE5EAF868566CD8C766B32 /* WidgetView.swift */; };
+		2EC38A18F19DB39DAF881A97 /* OpencodeWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 9946C87E607438B001E46AF5 /* OpencodeWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		58083D9FD9FA9AA0D39494AB /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D411F9C4A2DCADC9505ECCB /* Models.swift */; };
 		634504036E60F723FE62953B /* UsageChartView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 35DC0A46B5FEB2313AD133F1 /* UsageChartView.swift */; };
 		75040126C34521ADF64424E2 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D411F9C4A2DCADC9505ECCB /* Models.swift */; };
@@ -22,6 +23,30 @@
 		F107D2E927D2FD958357A57B /* DataFetcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 711320B0D3258720311ED9F3 /* DataFetcher.swift */; };
 		F5C2BBD0AC38D9DEDB572C16 /* DataStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0912346CB928974051E1022E /* DataStore.swift */; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		1CC1D7F6138F8D2DF0C9FCB9 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = BD42A02E119F9AAA4817ACDE /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = C0A02E660EB135564FA5792D;
+			remoteInfo = OpencodeWidget;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		7AC0FA0CA1E01ADE46C57C24 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				2EC38A18F19DB39DAF881A97 /* OpencodeWidget.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		0912346CB928974051E1022E /* DataStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataStore.swift; sourceTree = "<group>"; };
@@ -38,7 +63,7 @@
 		D8D98E2BDD07CB050712D068 /* OpencodeWidgetApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpencodeWidgetApp.swift; sourceTree = "<group>"; };
 		E8AE5EAF868566CD8C766B32 /* WidgetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetView.swift; sourceTree = "<group>"; };
 		FB7182CD74F3EC0F509DD489 /* OpencodeWidgetApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = OpencodeWidgetApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		FEE4CDF13934B58E22E66B9B /* .gitkeep */ = {isa = PBXFileReference; lastKnownFileType = text; path = .gitkeep; sourceTree = "<group>"; };
+		FEE4CDF13934B58E22E66B9B /* .gitkeep */ = {isa = PBXFileReference; path = .gitkeep; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -114,10 +139,12 @@
 			buildConfigurationList = 67D7327A68A1CFC96EAAEC55 /* Build configuration list for PBXNativeTarget "OpencodeWidgetApp" */;
 			buildPhases = (
 				048DD8011485DF3775E3C58E /* Sources */,
+				7AC0FA0CA1E01ADE46C57C24 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				44AED805042D50A374CD3488 /* PBXTargetDependency */,
 			);
 			name = OpencodeWidgetApp;
 			packageProductDependencies = (
@@ -211,6 +238,14 @@
 		};
 /* End PBXSourcesBuildPhase section */
 
+/* Begin PBXTargetDependency section */
+		44AED805042D50A374CD3488 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = C0A02E660EB135564FA5792D /* OpencodeWidget */;
+			targetProxy = 1CC1D7F6138F8D2DF0C9FCB9 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
 /* Begin XCBuildConfiguration section */
 		2F1ADEFC52619954E58895E2 /* Debug */ = {
 			isa = XCBuildConfiguration;
@@ -278,10 +313,8 @@
 		44027D139C25BFEAD27B2685 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				DEVELOPMENT_TEAM = QWTQQ7XHK4;
 				INFOPLIST_FILE = OpencodeWidget/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -369,10 +402,8 @@
 		D60C8DEEF223463119143962 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				DEVELOPMENT_TEAM = QWTQQ7XHK4;
 				INFOPLIST_FILE = OpencodeWidget/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
