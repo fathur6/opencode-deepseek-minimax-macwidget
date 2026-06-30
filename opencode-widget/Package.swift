@@ -29,5 +29,9 @@ let package = Package(
             dependencies: ["OpencodeWidgetApp"],
             linkerSettings: [.linkedLibrary("sqlite3")]
         ),
+        .testTarget(
+            name: "OpencodeWidgetTests",
+            dependencies: ["OpencodeWidget"]
+        ),
     ]
 )
