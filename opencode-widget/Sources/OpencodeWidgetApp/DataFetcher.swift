@@ -1,6 +1,8 @@
 import Foundation
 import SQLite3
+#if canImport(OpencodeWidgetShared)
 import OpencodeWidgetShared
+#endif
 
 enum DataFetcher {
     static let deepseekBalanceURL = URL(string: "https://api.deepseek.com/user/balance")!

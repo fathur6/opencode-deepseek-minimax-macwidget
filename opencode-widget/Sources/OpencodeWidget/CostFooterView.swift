@@ -1,5 +1,7 @@
 import SwiftUI
+#if canImport(OpencodeWidgetShared)
 import OpencodeWidgetShared
+#endif
 
 struct CostFooterView: View {
     let dailyUsage: [DailyUsageRow]

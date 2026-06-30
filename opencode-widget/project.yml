@@ -1,0 +1,32 @@
+name: OpencodeWidgetApp
+options:
+  bundleIdPrefix: com.opencode.widget
+  deploymentTarget:
+    macOS: "14.0"
+
+targets:
+  OpencodeWidgetApp:
+    type: application
+    platform: macOS
+    sources:
+      - Sources/OpencodeWidgetApp
+      - Sources/OpencodeWidgetShared
+    info:
+      path: OpencodeWidgetApp/Info.plist
+    entitlements:
+      path: OpencodeWidgetApp/Entitlements.plist
+    settings:
+      PRODUCT_BUNDLE_IDENTIFIER: com.opencode.widget.app
+      CODE_SIGN_STYLE: Automatic
+
+  OpencodeWidget:
+    type: app-extension
+    platform: macOS
+    sources:
+      - Sources/OpencodeWidget
+      - Sources/OpencodeWidgetShared
+    info:
+      path: OpencodeWidget/Info.plist
+    settings:
+      PRODUCT_BUNDLE_IDENTIFIER: com.opencode.widget.extension
+      CODE_SIGN_STYLE: Automatic

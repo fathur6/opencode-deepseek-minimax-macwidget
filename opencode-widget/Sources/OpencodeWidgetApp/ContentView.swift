@@ -1,5 +1,7 @@
 import SwiftUI
+#if canImport(OpencodeWidgetShared)
 import OpencodeWidgetShared
+#endif
 
 struct ContentView: View {
     @State private var showPreferences = false

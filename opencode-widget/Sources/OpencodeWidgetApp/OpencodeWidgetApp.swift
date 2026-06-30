@@ -1,5 +1,7 @@
 import SwiftUI
+#if canImport(OpencodeWidgetShared)
 import OpencodeWidgetShared
+#endif
 
 @main
 struct OpencodeWidgetApp: App {

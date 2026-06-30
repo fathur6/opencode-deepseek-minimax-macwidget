@@ -1,5 +1,7 @@
 import SwiftUI
+#if canImport(OpencodeWidgetShared)
 import OpencodeWidgetShared
+#endif
 
 struct PreferencesView: View {
     @AppStorage("minimaxBalance", store: UserDefaults(suiteName: "group.com.opencode.widget"))

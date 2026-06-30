@@ -1,6 +1,8 @@
 import WidgetKit
 import SwiftUI
+#if canImport(OpencodeWidgetShared)
 import OpencodeWidgetShared
+#endif
 
 struct UsageEntry: TimelineEntry {
     let date: Date
