@@ -11,6 +11,9 @@ struct OpencodeWidgetApp: App {
         MenuBarExtra("Opencode Widget", systemImage: "chart.bar.fill") {
             ContentView()
         }
+        Settings {
+            PreferencesView()
+        }
     }
 }
 
