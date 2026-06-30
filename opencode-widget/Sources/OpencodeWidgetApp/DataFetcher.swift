@@ -72,23 +72,32 @@ enum DataFetcher {
         return rowsByDate.values.sorted { $0.date < $1.date }
     }
 
+    static func readSavedMiniMaxBalance() -> Double? {
+        let defaults = UserDefaults(suiteName: "group.com.opencode.widget")
+        guard let str = defaults?.string(forKey: "minimaxBalance"),
+              !str.isEmpty else { return nil }
+        return Double(str.replacingOccurrences(of: "$", with: ""))
+    }
+
     static func refreshAll(dbPath: String = "\(NSHomeDirectory())/.local/share/opencode/opencode.db", authPath: String = "\(NSHomeDirectory())/.local/share/opencode/auth.json", session: URLSession = .shared) async -> WidgetCache {
+        let minimaxBalance = readSavedMiniMaxBalance()
+        let usage = queryUsageFromDB(dbPath: dbPath)
+
         guard let creds = AuthReader.readCredentials(authPath: authPath) else {
             return WidgetCache(
                 lastUpdated: Date(),
                 deepseek: ProviderBalance(balance: nil, currency: "USD"),
-                minimax: ProviderBalance(balance: nil, currency: "USD"),
-                dailyUsage: queryUsageFromDB(dbPath: dbPath)
+                minimax: ProviderBalance(balance: minimaxBalance, currency: "USD"),
+                dailyUsage: usage
             )
         }
 
         let deepseekBalance = await fetchDeepseekBalance(apiKey: creds.deepseekKey, session: session)
-        let usage = queryUsageFromDB(dbPath: dbPath)
 
         return WidgetCache(
             lastUpdated: Date(),
             deepseek: ProviderBalance(balance: deepseekBalance, currency: "USD"),
-            minimax: ProviderBalance(balance: nil, currency: "USD"),
+            minimax: ProviderBalance(balance: minimaxBalance, currency: "USD"),
             dailyUsage: usage
         )
     }
