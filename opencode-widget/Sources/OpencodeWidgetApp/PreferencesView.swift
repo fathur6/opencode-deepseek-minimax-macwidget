@@ -52,6 +52,7 @@ struct PreferencesView: View {
             lastUpdated: Date(),
             deepseek: existing?.deepseek ?? ProviderBalance(),
             minimax: ProviderBalance(balance: balance, currency: "USD"),
+            minimaxUsage: existing?.minimaxUsage,
             dailyUsage: existing?.dailyUsage ?? []
         )
         DataStore.save(cache: cache)

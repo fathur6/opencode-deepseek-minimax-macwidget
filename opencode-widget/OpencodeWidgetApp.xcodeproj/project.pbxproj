@@ -38,7 +38,7 @@
 		D8D98E2BDD07CB050712D068 /* OpencodeWidgetApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpencodeWidgetApp.swift; sourceTree = "<group>"; };
 		E8AE5EAF868566CD8C766B32 /* WidgetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetView.swift; sourceTree = "<group>"; };
 		FB7182CD74F3EC0F509DD489 /* OpencodeWidgetApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = OpencodeWidgetApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		FEE4CDF13934B58E22E66B9B /* .gitkeep */ = {isa = PBXFileReference; path = .gitkeep; sourceTree = "<group>"; };
+		FEE4CDF13934B58E22E66B9B /* .gitkeep */ = {isa = PBXFileReference; lastKnownFileType = text; path = .gitkeep; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -278,8 +278,10 @@
 		44027D139C25BFEAD27B2685 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
+				DEVELOPMENT_TEAM = QWTQQ7XHK4;
 				INFOPLIST_FILE = OpencodeWidget/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -367,8 +369,10 @@
 		D60C8DEEF223463119143962 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
+				DEVELOPMENT_TEAM = QWTQQ7XHK4;
 				INFOPLIST_FILE = OpencodeWidget/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",

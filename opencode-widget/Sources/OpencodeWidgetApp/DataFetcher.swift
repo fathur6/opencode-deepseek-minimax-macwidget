@@ -70,8 +70,10 @@ enum DataFetcher {
         var rowsByDate: [String: DailyUsageRow] = [:]
 
         while sqlite3_step(statement) == SQLITE_ROW {
-            let day = String(cString: sqlite3_column_text(statement, 0))
-            let provider = String(cString: sqlite3_column_text(statement, 1))
+            guard let dayPtr = sqlite3_column_text(statement, 0),
+                  let providerPtr = sqlite3_column_text(statement, 1) else { continue }
+            let day = String(cString: dayPtr)
+            let provider = String(cString: providerPtr)
             let tokens = Int(sqlite3_column_int64(statement, 2))
             let cost = sqlite3_column_double(statement, 3)
 
