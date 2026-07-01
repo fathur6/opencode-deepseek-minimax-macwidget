@@ -9,10 +9,9 @@ struct WidgetView: View {
     var body: some View {
         VStack(spacing: 8) {
             HStack {
-                Image(systemName: "chart.bar.fill")
-                    .foregroundColor(.accentColor)
-                Text("AI Platform Usage")
+                Text("Usage")
                     .font(.headline)
+                    .foregroundColor(.secondary)
                 Spacer()
                 Text(entry.cache.lastUpdated, style: .time)
                     .font(.caption2)
@@ -21,17 +20,12 @@ struct WidgetView: View {
 
             HStack(spacing: 12) {
                 BalanceCardView(
-                    title: "Deepseek",
-                    balance: entry.cache.deepseek.balance,
-                    color: .blue
+                    title: "DeepSeek",
+                    balance: entry.cache.deepseek.balance
                 )
                 BalanceCardView(
                     title: "MiniMax",
-                    balance: entry.cache.minimax.balance,
-                    color: .green,
-                    detailText: entry.cache.minimaxUsage.map {
-                        "\($0.remainingPrompts) / \($0.totalPrompts) prompts"
-                    }
+                    balance: entry.cache.minimax.balance
                 )
             }
 

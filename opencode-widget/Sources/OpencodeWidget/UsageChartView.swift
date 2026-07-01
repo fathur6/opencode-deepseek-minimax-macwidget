@@ -12,26 +12,26 @@ struct UsageChartView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("Daily Token Usage (5 days)")
+            Text("Daily Tokens")
                 .font(.caption)
                 .foregroundColor(.secondary)
 
             HStack(alignment: .bottom, spacing: 6) {
                 ForEach(dailyUsage.suffix(5)) { row in
                     VStack(spacing: 2) {
-                        let deepHeight = maxTokens > 0 ? CGFloat(row.deepseekTokens) / CGFloat(maxTokens) * 60 : 0
-                        let miniHeight = maxTokens > 0 ? CGFloat(row.minimaxTokens) / CGFloat(maxTokens) * 60 : 0
+                        let dsH = maxTokens > 0 ? CGFloat(row.deepseekTokens) / CGFloat(maxTokens) * 60 : 0
+                        let mmH = maxTokens > 0 ? CGFloat(row.minimaxTokens) / CGFloat(maxTokens) * 60 : 0
 
-                        ZStack(alignment: .bottom) {
+                        VStack(spacing: 0) {
                             Rectangle()
-                                .fill(Color.green.opacity(0.7))
-                                .frame(height: max(miniHeight, 2))
+                                .fill(Color.primary.opacity(0.8))
+                                .frame(height: max(dsH, 2))
                             Rectangle()
-                                .fill(Color.blue.opacity(0.7))
-                                .frame(height: max(deepHeight, 2))
+                                .fill(Color.primary.opacity(0.3))
+                                .frame(height: max(mmH, 2))
                         }
                         .frame(width: 36)
-                        .cornerRadius(3)
+                        .cornerRadius(2)
 
                         Text(formatDate(row.date))
                             .font(.system(size: 8))

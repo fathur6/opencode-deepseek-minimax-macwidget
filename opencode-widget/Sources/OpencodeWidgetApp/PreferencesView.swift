@@ -4,33 +4,58 @@ import OpencodeWidgetShared
 #endif
 
 struct PreferencesView: View {
-    @AppStorage("minimaxBalance", store: UserDefaults(suiteName: "group.com.opencode.widget"))
-    private var minimaxBalance: String = ""
+    @State private var minimaxCreditText: String = ""
+    @State private var minimaxAutoFetch: Bool = true
+    @State private var refreshStatus: String = ""
+    @State private var savedText: String = ""
 
-    @State private var refreshStatus = ""
+    private let defaults = UserDefaults(suiteName: "group.com.opencode.widget")
 
     var body: some View {
         Form {
-            Section("MiniMax Balance") {
-                TextField("Enter balance (e.g. 5.00)", text: $minimaxBalance)
-                    .textFieldStyle(.roundedBorder)
-                    .onChange(of: minimaxBalance) {
-                        updateWidgetCache()
+            Section("MiniMax Credit (USD)") {
+                HStack {
+                    TextField("Enter credit amount", text: $minimaxCreditText)
+                        .textFieldStyle(.roundedBorder)
+                    Toggle("Auto", isOn: $minimaxAutoFetch)
+                        .toggleStyle(.switch)
+                        .help("Fetch from API automatically")
+                }
+
+                if minimaxCreditText != savedText {
+                    HStack {
+                        Button("Cancel") {
+                            minimaxCreditText = savedText
+                        }
+                        Spacer()
+                        HStack(spacing: 8) {
+                            if !refreshStatus.isEmpty {
+                                Text(refreshStatus)
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                            Button("Save") {
+                                saveMinimaxCredit()
+                            }
+                            .keyboardShortcut(.return, modifiers: [])
+                            .disabled(minimaxCreditText.isEmpty)
+                        }
                     }
+                }
             }
 
-            Section("Deepseek") {
+            Section("DeepSeek") {
                 Text("Auto-fetched from API")
                     .foregroundColor(.secondary)
             }
 
             Section {
-                Button("Refresh Now") {
+                Button("Refresh Widget Data") {
                     Task {
                         refreshStatus = "Refreshing..."
                         let cache = await DataFetcher.refreshAll()
                         DataStore.save(cache: cache)
-                        refreshStatus = "Updated at \(Date().formatted(date: .omitted, time: .shortened))"
+                        refreshStatus = "Updated"
                     }
                 }
 
@@ -42,19 +67,23 @@ struct PreferencesView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 380, height: 300)
+        .frame(width: 380, height: 260)
+        .onAppear { loadPrefs() }
     }
 
-    private func updateWidgetCache() {
-        let existing = DataStore.load()
-        let balance = Double(minimaxBalance.replacingOccurrences(of: "$", with: ""))
-        let cache = WidgetCache(
-            lastUpdated: Date(),
-            deepseek: existing?.deepseek ?? ProviderBalance(),
-            minimax: ProviderBalance(balance: balance, currency: "USD"),
-            minimaxUsage: existing?.minimaxUsage,
-            dailyUsage: existing?.dailyUsage ?? []
-        )
-        DataStore.save(cache: cache)
+    private func loadPrefs() {
+        minimaxAutoFetch = defaults?.bool(forKey: "minimaxAutoFetch") ?? true
+        if let val = defaults?.double(forKey: "minimaxCredit"), val > 0 {
+            minimaxCreditText = String(format: "%.2f", val)
+            savedText = minimaxCreditText
+        }
+    }
+
+    private func saveMinimaxCredit() {
+        guard let val = Double(minimaxCreditText) else { return }
+        defaults?.set(val, forKey: "minimaxCredit")
+        defaults?.set(minimaxAutoFetch, forKey: "minimaxAutoFetch")
+        savedText = minimaxCreditText
+        refreshStatus = "Saved"
     }
 }

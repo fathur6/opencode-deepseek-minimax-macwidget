@@ -11,9 +11,9 @@ struct CostFooterView: View {
 
     var body: some View {
         HStack {
-            Label(String(format: "Today: $%.2f", todayCost), systemImage: "arrow.up.circle")
+            Text(String(format: "Today: $%.2f", todayCost))
             Spacer()
-            Label(String(format: "7-day: $%.2f", weekCost), systemImage: "clock")
+            Text(String(format: "5d: $%.2f", weekCost))
         }
         .font(.caption2)
         .foregroundColor(.secondary)

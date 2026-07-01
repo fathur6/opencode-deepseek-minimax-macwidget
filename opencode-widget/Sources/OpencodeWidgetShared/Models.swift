@@ -105,13 +105,17 @@ public struct WidgetCache: Codable {
     public var deepseek: ProviderBalance
     public var minimax: ProviderBalance
     public var minimaxUsage: MiniMaxUsage?
+    public var minimaxCredit: Double?
+    public var minimaxCreditFetched: Date?
     public var dailyUsage: [DailyUsageRow]
 
-    public init(lastUpdated: Date = Date(), deepseek: ProviderBalance = ProviderBalance(), minimax: ProviderBalance = ProviderBalance(), minimaxUsage: MiniMaxUsage? = nil, dailyUsage: [DailyUsageRow] = []) {
+    public init(lastUpdated: Date = Date(), deepseek: ProviderBalance = ProviderBalance(), minimax: ProviderBalance = ProviderBalance(), minimaxUsage: MiniMaxUsage? = nil, minimaxCredit: Double? = nil, minimaxCreditFetched: Date? = nil, dailyUsage: [DailyUsageRow] = []) {
         self.lastUpdated = lastUpdated
         self.deepseek = deepseek
         self.minimax = minimax
         self.minimaxUsage = minimaxUsage
+        self.minimaxCredit = minimaxCredit
+        self.minimaxCreditFetched = minimaxCreditFetched
         self.dailyUsage = dailyUsage
     }
 
