@@ -11,6 +11,8 @@ targets:
     sources:
       - Sources/OpencodeWidgetApp
       - Sources/OpencodeWidgetShared
+      - path: OpencodeWidgetApp/Resources
+        type: folder
     dependencies: []
     info:
       path: OpencodeWidgetApp/Info.plist

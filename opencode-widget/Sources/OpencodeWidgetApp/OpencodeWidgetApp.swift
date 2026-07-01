@@ -20,26 +20,17 @@ struct OpencodeWidgetApp: App {
         MenuBarExtra {
             ContentView(menuState: menuState)
         } label: {
-            menuBarLabel
+            let hasDS = menuState.deepseekBalance != nil
+            let hasMM = menuState.minimaxBalance != nil
+            switch (hasDS, hasMM) {
+            case (true, true): Text("⬡◈")
+            case (true, false): Text("⬡")
+            case (false, true): Text("◈")
+            case (false, false): Text("⬡").opacity(0.4)
+            }
         }
         Settings {
             PreferencesView()
-        }
-    }
-
-    @ViewBuilder
-    private var menuBarLabel: some View {
-        HStack(spacing: 4) {
-            if menuState.deepseekBalance != nil {
-                Image("deepseek-icon")
-                    .resizable()
-                    .frame(width: 14, height: 14)
-            }
-            if menuState.minimaxBalance != nil {
-                Image("minimax-icon")
-                    .resizable()
-                    .frame(width: 14, height: 14)
-            }
         }
     }
 }

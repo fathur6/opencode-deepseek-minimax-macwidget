@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		6DCAA42AF8C20B9FF53AC509 /* Resources in Resources */ = {isa = PBXBuildFile; fileRef = 51F49427C2E704920BB39BC6 /* Resources */; };
 		75040126C34521ADF64424E2 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D411F9C4A2DCADC9505ECCB /* Models.swift */; };
 		80E136D28F9E4EA3EFBD33ED /* AuthReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F74B560C20096D25F2577DB /* AuthReader.swift */; };
 		84351CF63C07C3F339734BE3 /* OpencodeWidgetApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8D98E2BDD07CB050712D068 /* OpencodeWidgetApp.swift */; };
@@ -18,6 +19,7 @@
 
 /* Begin PBXFileReference section */
 		0912346CB928974051E1022E /* DataStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataStore.swift; sourceTree = "<group>"; };
+		51F49427C2E704920BB39BC6 /* Resources */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Resources; path = OpencodeWidgetApp/Resources; sourceTree = SOURCE_ROOT; };
 		5D411F9C4A2DCADC9505ECCB /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
 		6AB85FB30EC8BBBBE34DAD84 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		6F74B560C20096D25F2577DB /* AuthReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthReader.swift; sourceTree = "<group>"; };
@@ -56,6 +58,7 @@
 		AEAD614E025555F72F11AD41 = {
 			isa = PBXGroup;
 			children = (
+				51F49427C2E704920BB39BC6 /* Resources */,
 				85202E8ED7DA986209061A28 /* OpencodeWidgetApp */,
 				94214F5C787134FD6EDF7651 /* OpencodeWidgetShared */,
 				B9A3CDADEF5E9ADCC2470356 /* Products */,
@@ -86,6 +89,7 @@
 			buildConfigurationList = 67D7327A68A1CFC96EAAEC55 /* Build configuration list for PBXNativeTarget "OpencodeWidgetApp" */;
 			buildPhases = (
 				048DD8011485DF3775E3C58E /* Sources */,
+				8E2C8850F218C134FE12A949 /* Resources */,
 			);
 			buildRules = (
 			);
@@ -130,6 +134,17 @@
 			);
 		};
 /* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		8E2C8850F218C134FE12A949 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				6DCAA42AF8C20B9FF53AC509 /* Resources in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		048DD8011485DF3775E3C58E /* Sources */ = {
