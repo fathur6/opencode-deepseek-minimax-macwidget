@@ -13,6 +13,8 @@ targets:
       - Sources/OpencodeWidgetShared
       - path: OpencodeWidgetApp/Resources
         type: folder
+      - path: OpencodeWidgetApp/AppIcon.icns
+        buildPhase: resources
     dependencies: []
     info:
       path: OpencodeWidgetApp/Info.plist
