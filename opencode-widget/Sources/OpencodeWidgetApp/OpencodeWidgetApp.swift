@@ -29,18 +29,17 @@ struct OpencodeWidgetApp: App {
 
     @ViewBuilder
     private var menuBarLabel: some View {
-        let dsText = menuState.deepseekBalance.map { String(format: "$%.2f", $0) }
-        let mmText = menuState.minimaxBalance.map { String(format: "$%.2f", $0) }
-
-        switch (dsText, mmText) {
-        case let (ds?, mm?):
-            Text("DS \(ds)  MM \(mm)")
-        case let (ds?, nil):
-            Text("DS \(ds)")
-        case let (nil, mm?):
-            Text("MM \(mm)")
-        case (nil, nil):
-            Text("")
+        HStack(spacing: 4) {
+            if menuState.deepseekBalance != nil {
+                Image("deepseek-icon")
+                    .resizable()
+                    .frame(width: 14, height: 14)
+            }
+            if menuState.minimaxBalance != nil {
+                Image("minimax-icon")
+                    .resizable()
+                    .frame(width: 14, height: 14)
+            }
         }
     }
 }

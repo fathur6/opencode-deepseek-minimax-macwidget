@@ -11,9 +11,7 @@ targets:
     sources:
       - Sources/OpencodeWidgetApp
       - Sources/OpencodeWidgetShared
-    dependencies:
-      - target: OpencodeWidget
-        embed: true
+    dependencies: []
     info:
       path: OpencodeWidgetApp/Info.plist
     entitlements:
@@ -22,19 +20,3 @@ targets:
       PRODUCT_BUNDLE_IDENTIFIER: com.opencode.widget.app
       CODE_SIGN_STYLE: Automatic
 
-  OpencodeWidget:
-    type: app-extension
-    platform: macOS
-    sources:
-      - Sources/OpencodeWidget
-      - Sources/OpencodeWidgetShared
-    info:
-      path: OpencodeWidget/Info.plist
-      properties:
-        NSExtension:
-          NSExtensionPointIdentifier: com.apple.widgetkit-extension
-    settings:
-      PRODUCT_BUNDLE_IDENTIFIER: com.opencode.widget.app.extension
-      CODE_SIGN_STYLE: Automatic
-    entitlements:
-      path: OpencodeWidget/Entitlements.plist
