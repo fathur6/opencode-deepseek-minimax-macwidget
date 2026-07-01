@@ -18,6 +18,9 @@ targets:
     dependencies: []
     info:
       path: OpencodeWidgetApp/Info.plist
+      properties:
+        CFBundleIconFile: AppIcon
+        LSUIElement: false
     entitlements:
       path: OpencodeWidgetApp/Entitlements.plist
     settings:

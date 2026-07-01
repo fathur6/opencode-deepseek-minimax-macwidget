@@ -29,6 +29,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var refreshTimer: Timer?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        NSApp.setActivationPolicy(.regular)
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         updateStatusIcon()
         buildMenu()
@@ -109,25 +110,31 @@ struct MenuContent: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 12) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("DeepSeek").font(.caption).foregroundColor(.secondary)
-                    Text(menuState.deepseekBalance.map { String(format: "$%.2f", $0) } ?? "--")
-                        .font(.headline).fontWeight(.semibold).monospacedDigit()
-                    Text("USD").font(.caption2).foregroundColor(.secondary)
+                Button(action: { NSWorkspace.shared.open(URL(string: "https://platform.deepseek.com/usage")!) }) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("DeepSeek").font(.caption).foregroundColor(.secondary)
+                        Text(menuState.deepseekBalance.map { String(format: "$%.2f", $0) } ?? "--")
+                            .font(.headline).fontWeight(.semibold).monospacedDigit()
+                        Text("USD").font(.caption2).foregroundColor(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(8)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(8)
+                .buttonStyle(.plain)
                 .background(Color.primary.opacity(0.06))
                 .cornerRadius(6)
 
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("MiniMax").font(.caption).foregroundColor(.secondary)
-                    Text(menuState.minimaxBalance.map { String(format: "$%.2f", $0) } ?? "--")
-                        .font(.headline).fontWeight(.semibold).monospacedDigit()
-                    Text("USD").font(.caption2).foregroundColor(.secondary)
+                Button(action: { NSWorkspace.shared.open(URL(string: "https://platform.minimax.io/console/recharge-records?operation=RECHARGE&type=SUCCESS")!) }) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("MiniMax").font(.caption).foregroundColor(.secondary)
+                        Text(menuState.minimaxBalance.map { String(format: "$%.2f", $0) } ?? "--")
+                            .font(.headline).fontWeight(.semibold).monospacedDigit()
+                        Text("USD").font(.caption2).foregroundColor(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(8)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(8)
+                .buttonStyle(.plain)
                 .background(Color.primary.opacity(0.06))
                 .cornerRadius(6)
             }
