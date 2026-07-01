@@ -15,6 +15,39 @@ macOS menu bar app that tracks DeepSeek and MiniMax API usage in real time. Show
 - 15-minute auto-refresh
 - B&W monochrome design
 
+## API Approach
+
+### DeepSeek — `/user/balance`
+
+```
+GET https://api.deepseek.com/user/balance
+Authorization: Bearer <api-key>
+```
+
+Returns `balance_infos[].total_balance` as a USD string. This is a public, undocumented endpoint used by the DeepSeek web console. Works with any valid API key.
+
+### MiniMax — `/account/query_balance`
+
+```
+GET https://platform.minimax.io/account/query_balance
+Authorization: Bearer <api-key>
+```
+
+Returns `available_amount` as a USD string. This is the web console's internal balance API. Unlike the documented `/coding_plan/remains` (prompt counts), this returns actual dollar credit. Works with the same API key used for chat/completion.
+
+Both endpoints were discovered by inspecting network requests from their respective web consoles. Neither is documented in official API references.
+
+### Auth
+
+API keys are read from OpenCode's auth config at `~/.local/share/opencode/auth.json`:
+
+```json
+{
+  "deepseek": {"type": "api", "key": "sk-..."},
+  "minimax": {"type": "api", "key": "sk-..."}
+}
+```
+
 ## Build
 
 ```bash
