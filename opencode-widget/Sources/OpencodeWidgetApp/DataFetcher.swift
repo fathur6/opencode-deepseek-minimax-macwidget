@@ -7,7 +7,7 @@ import OpencodeWidgetShared
 enum DataFetcher {
     static let deepseekBalanceURL = URL(string: "https://api.deepseek.com/user/balance")!
     static let minimaxUsageURL = URL(string: "https://api.minimax.io/v1/api/openplatform/coding_plan/remains")!
-    static let minimaxCreditURL = URL(string: "https://api.minimax.io/v1/api/openplatform/credit")!
+    static let minimaxCreditURL = URL(string: "https://platform.minimax.io/account/query_balance")!
 
     static func fetchMiniMaxCredit(apiKey: String, session: URLSession = .shared) async -> Double? {
         var request = URLRequest(url: minimaxCreditURL)
@@ -16,7 +16,8 @@ enum DataFetcher {
 
         guard let data = try? await session.data(for: request).0,
               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let balance = json["balance"] as? Double else {
+              let amountStr = json["available_amount"] as? String,
+              let balance = Double(amountStr) else {
             return nil
         }
         return balance
