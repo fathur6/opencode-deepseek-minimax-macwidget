@@ -15,6 +15,14 @@ macOS menu bar app that tracks DeepSeek and MiniMax API usage in real time. Show
 - 15-minute auto-refresh
 - B&W monochrome design
 
+## Example
+
+The DeepSeek + MiniMax version keeps both providers visible in a compact menu-bar panel. Each card shows the provider balance and status at a glance, while the Refresh and Quit actions remain available below the cards.
+
+![DeepSeek and MiniMax macOS menu bar widget](https://i.postimg.cc/ncKXx3fs/widget.png)
+
+*Example of the DeepSeek + MiniMax widget layout.*
+
 ## API Approach
 
 ### DeepSeek — `/user/balance`
