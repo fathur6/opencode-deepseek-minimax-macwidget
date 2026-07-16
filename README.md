@@ -17,11 +17,21 @@ macOS menu bar app that tracks DeepSeek and MiniMax API usage in real time. Show
 
 ## Example
 
-The DeepSeek + MiniMax version keeps both providers visible in a compact menu-bar panel. Each card shows the provider balance and status at a glance, while the Refresh and Quit actions remain available below the cards.
+### DeepSeek + MiniMax
+
+The original version keeps both providers visible in a compact menu-bar panel. Each card shows the provider balance and status at a glance, while the Refresh and Quit actions remain available below the cards.
 
 ![DeepSeek and MiniMax macOS menu bar widget](https://i.postimg.cc/ncKXx3fs/widget.png)
 
 *Example of the DeepSeek + MiniMax widget layout.*
+
+### DeepSeek + MiniMax + ChatGPT Plus
+
+The expanded version adds a ChatGPT Plus quota card below the DeepSeek and MiniMax balances. It shows the remaining subscription percentage and the next quota reset date in the same compact menu-bar panel.
+
+![DeepSeek, MiniMax, and ChatGPT Plus macOS menu bar widget](https://i.postimg.cc/76TLWVN8/Screenshot-2026-07-16-at-9-34-59-PM.png)
+
+*Example of the DeepSeek + MiniMax + ChatGPT Plus widget layout.*
 
 ## API Approach
 
