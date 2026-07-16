@@ -20,10 +20,9 @@ targets:
       path: OpencodeWidgetApp/Info.plist
       properties:
         CFBundleIconFile: AppIcon
-        LSUIElement: false
+        LSUIElement: true
     entitlements:
       path: OpencodeWidgetApp/Entitlements.plist
     settings:
       PRODUCT_BUNDLE_IDENTIFIER: com.opencode.widget.app
       CODE_SIGN_STYLE: Automatic
-
