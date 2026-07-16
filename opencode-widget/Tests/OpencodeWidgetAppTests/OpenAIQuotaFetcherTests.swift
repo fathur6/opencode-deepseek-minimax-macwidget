@@ -1,56 +1,103 @@
+import Foundation
 import XCTest
 @testable import OpencodeWidgetApp
+@testable import OpencodeWidgetShared
+
+private final class QuotaMockURLProtocol: URLProtocol {
+    nonisolated(unsafe) static var responseData = Data()
+    nonisolated(unsafe) static var statusCode = 200
+    nonisolated(unsafe) static var lastRequest: URLRequest?
+
+    override class func canInit(with request: URLRequest) -> Bool { true }
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+
+    override func startLoading() {
+        Self.lastRequest = request
+        let response = HTTPURLResponse(
+            url: request.url!,
+            statusCode: Self.statusCode,
+            httpVersion: nil,
+            headerFields: nil
+        )!
+        client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+        client?.urlProtocol(self, didLoad: Self.responseData)
+        client?.urlProtocolDidFinishLoading(self)
+    }
+
+    override func stopLoading() {}
+}
 
 final class OpenAIQuotaFetcherTests: XCTestCase {
-    func testFetchParsesHelperJSON() async throws {
-        let helper = try makeHelper(script: "printf '{\"remainingPercent\":97,\"resetDate\":\"2026-07-23T00:00:00Z\"}'")
-        let result = await OpenAIQuotaFetcher.fetch(
-            helperPath: helper,
-            usageURL: URL(string: "https://chatgpt.com/usage")!,
-            timeout: 2
-        )
+    private let endpoint = URL(string: "https://chatgpt.com/backend-api/wham/usage")!
+
+    override func setUp() {
+        super.setUp()
+        QuotaMockURLProtocol.responseData = Data()
+        QuotaMockURLProtocol.statusCode = 200
+        QuotaMockURLProtocol.lastRequest = nil
+    }
+
+    func testFetchParsesWeeklyWindowAndSendsOAuthHeaders() async {
+        QuotaMockURLProtocol.responseData = Data(#"{
+          "plan_type": "plus",
+          "rate_limit": {
+            "primary_window": {"used_percent": 10, "reset_at": 1784764800},
+            "secondary_window": {"used_percent": 3, "reset_at": 1784808960}
+          }
+        }"#.utf8)
+        let session = makeSession()
+        let credentials = OpenAIAuthCredentials(accessToken: "test-token", accountID: "acct-test")
+
+        let result = await OpenAIQuotaFetcher.fetch(credentials: credentials, session: session, endpoint: endpoint)
+
         XCTAssertEqual(result?.remainingPercent, 97)
-        XCTAssertEqual(result?.resetDate, Date(timeIntervalSince1970: 1_784_764_800))
+        XCTAssertEqual(result?.resetDate, Date(timeIntervalSince1970: 1784808960))
+        XCTAssertEqual(QuotaMockURLProtocol.lastRequest?.value(forHTTPHeaderField: "Authorization"), "Bearer test-token")
+        XCTAssertEqual(QuotaMockURLProtocol.lastRequest?.value(forHTTPHeaderField: "ChatGPT-Account-ID"), "acct-test")
     }
 
-    func testFetchReturnsNilForMalformedJSON() async throws {
-        let helper = try makeHelper(script: "printf 'not-json'")
+    func testFetchFallsBackToPrimaryWindowWhenWeeklyWindowMissing() async {
+        QuotaMockURLProtocol.responseData = Data(#"{
+          "rate_limit": {"primary_window": {"used_percent": 25, "reset_at": 1784764800}}
+        }"#.utf8)
+
         let result = await OpenAIQuotaFetcher.fetch(
-            helperPath: helper,
-            usageURL: URL(string: "https://chatgpt.com/usage")!,
-            timeout: 2
+            credentials: OpenAIAuthCredentials(accessToken: "test-token"),
+            session: makeSession(),
+            endpoint: endpoint
         )
+
+        XCTAssertEqual(result?.remainingPercent, 75)
+    }
+
+    func testFetchReturnsNilForUnauthorizedResponse() async {
+        QuotaMockURLProtocol.statusCode = 401
+        QuotaMockURLProtocol.responseData = Data(#"{"error":"token_expired"}"#.utf8)
+
+        let result = await OpenAIQuotaFetcher.fetch(
+            credentials: OpenAIAuthCredentials(accessToken: "expired-token"),
+            session: makeSession(),
+            endpoint: endpoint
+        )
+
         XCTAssertNil(result)
     }
 
-    func testFetchReturnsNilForNonzeroExit() async throws {
-        let helper = try makeHelper(script: "exit 1")
+    func testFetchReturnsNilForMalformedOrMissingUsage() async {
+        QuotaMockURLProtocol.responseData = Data(#"{"rate_limit": {}}"#.utf8)
+
         let result = await OpenAIQuotaFetcher.fetch(
-            helperPath: helper,
-            usageURL: URL(string: "https://chatgpt.com/usage")!,
-            timeout: 2
+            credentials: OpenAIAuthCredentials(accessToken: "test-token"),
+            session: makeSession(),
+            endpoint: endpoint
         )
+
         XCTAssertNil(result)
     }
 
-    func testFetchReturnsNilAfterTimeout() async throws {
-        let helper = try makeHelper(script: "sleep 2")
-        let result = await OpenAIQuotaFetcher.fetch(
-            helperPath: helper,
-            usageURL: URL(string: "https://chatgpt.com/usage")!,
-            timeout: 0.05
-        )
-        XCTAssertNil(result)
-    }
-
-    private func makeHelper(script: String) throws -> String {
-        let path = FileManager.default.temporaryDirectory
-            .appendingPathComponent("openai-helper-")
-            .appendingPathExtension(UUID().uuidString)
-            .path
-        try "#!/bin/sh\n\(script)\n".write(toFile: path, atomically: true, encoding: .utf8)
-        try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: path)
-        addTeardownBlock { try? FileManager.default.removeItem(atPath: path) }
-        return path
+    private func makeSession() -> URLSession {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [QuotaMockURLProtocol.self]
+        return URLSession(configuration: configuration)
     }
 }

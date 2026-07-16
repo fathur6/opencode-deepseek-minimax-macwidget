@@ -328,7 +328,7 @@ final class DataFetcherTests: XCTestCase {
         let cache = await DataFetcher.refreshAll(
             dbPath: tempDBPath,
             authPath: tempAuthPath,
-            openAIHelperPath: "/tmp/test-helper",
+            openAIAuthPath: "/tmp/test-codex-auth.json",
             cacheSuiteName: tempCachePath,
             openAIQuotaFetcher: { _, _, _ in expected }
         )
@@ -343,7 +343,7 @@ final class DataFetcherTests: XCTestCase {
         let cache = await DataFetcher.refreshAll(
             dbPath: tempDBPath,
             authPath: tempAuthPath,
-            openAIHelperPath: "/tmp/test-helper",
+            openAIAuthPath: "/tmp/test-codex-auth.json",
             cacheSuiteName: tempCachePath,
             openAIQuotaFetcher: { _, _, _ in nil }
         )

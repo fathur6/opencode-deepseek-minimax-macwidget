@@ -1,32 +1,17 @@
 # OpenCode Menu Bar Widget
 
-The widget reads ChatGPT subscription quota from a local Playwright helper. It
-connects to an already-authenticated Chrome debugging session; it does not
-store passwords, cookies, session tokens, or page contents.
+The widget reads ChatGPT/Codex subscription quota from the OAuth session used
+by Codex. It calls the authenticated `/backend-api/wham/usage` endpoint and
+does not store passwords, cookies, session tokens, or response bodies.
 
 ## OpenAI quota setup
 
-Install the helper dependencies:
+Sign in with Codex so that `~/.codex/auth.json` contains the OAuth session.
+The widget polls `https://chatgpt.com/backend-api/wham/usage` every 15 minutes
+using the access token and optional account ID from that file. Tokens are only
+held in memory while the request is made; they are not logged or copied into
+the widget cache.
 
-```bash
-cd OpenAIQuotaHelper
-npm install
-npx playwright install chromium
-```
-
-Create a separate Chrome profile and launch it with the DevTools Protocol
-enabled:
-
-```bash
-mkdir -p "$HOME/.local/share/opencode/chatgpt-chrome"
-"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
-  --user-data-dir="$HOME/.local/share/opencode/chatgpt-chrome" \
-  --remote-debugging-port=9222
-```
-
-Sign into ChatGPT in that browser window. The widget uses the local session
-through `http://127.0.0.1:9222` and polls the usage page every 15 minutes.
-
-If the helper is not at the default path, set
-`OPENAI_QUOTA_HELPER_PATH` to the absolute path of `OpenAIQuotaHelper/index.mjs`.
-Set `CHROME_CDP_URL` if Chrome listens on a different local CDP URL.
+If the response is `401`, re-authenticate or switch to the intended ChatGPT
+account in Codex. The client prefers the weekly `secondary_window` and falls
+back to `primary_window` when necessary.

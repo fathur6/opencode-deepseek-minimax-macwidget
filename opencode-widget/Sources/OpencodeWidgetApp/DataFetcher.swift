@@ -8,7 +8,7 @@ enum DataFetcher {
     static let deepseekBalanceURL = URL(string: "https://api.deepseek.com/user/balance")!
     static let minimaxUsageURL = URL(string: "https://api.minimax.io/v1/api/openplatform/coding_plan/remains")!
     static let minimaxCreditURL = URL(string: "https://platform.minimax.io/account/query_balance")!
-    static let openAIUsageURL = URL(string: "https://chatgpt.com/usage")!
+    static let openAIUsageURL = OpenAIQuotaFetcher.usageURL
 
     static func fetchMiniMaxCredit(apiKey: String, session: URLSession = .shared) async -> Double? {
         var request = URLRequest(url: minimaxCreditURL)
@@ -127,17 +127,17 @@ enum DataFetcher {
         dbPath: String = "\(NSHomeDirectory())/.local/share/opencode/opencode.db",
         authPath: String = "\(NSHomeDirectory())/.local/share/opencode/auth.json",
         session: URLSession = .shared,
-        openAIHelperPath: String = ProcessInfo.processInfo.environment["OPENAI_QUOTA_HELPER_PATH"] ?? "\(NSHomeDirectory())/.local/share/opencode/OpenAIQuotaHelper/index.mjs",
+        openAIAuthPath: String = "\(NSHomeDirectory())/.codex/auth.json",
         cacheSuiteName: String = DataStore.defaultSuiteName,
         cacheFileName: String = DataStore.defaultFileName,
-        openAIQuotaFetcher: @escaping @Sendable (String, URL, TimeInterval) async -> OpenAIQuota? = { helperPath, usageURL, timeout in
-            await OpenAIQuotaFetcher.fetch(helperPath: helperPath, usageURL: usageURL, timeout: timeout)
+        openAIQuotaFetcher: @escaping @Sendable (String, URLSession, URL) async -> OpenAIQuota? = { authPath, session, endpoint in
+            await OpenAIQuotaFetcher.fetch(authPath: authPath, session: session, endpoint: endpoint)
         }
     ) async -> WidgetCache {
         let usage = queryUsageFromDB(dbPath: dbPath)
         let previousQuota = DataStore.load(suiteName: cacheSuiteName, fileName: cacheFileName)?.openAIQuota
         let fetchedOpenAIQuotaTask = Task {
-            await openAIQuotaFetcher(openAIHelperPath, openAIUsageURL, 10)
+            await openAIQuotaFetcher(openAIAuthPath, session, openAIUsageURL)
         }
 
         guard let creds = AuthReader.readCredentials(authPath: authPath) else {
