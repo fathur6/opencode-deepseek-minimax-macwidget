@@ -109,7 +109,7 @@ struct MenuContent: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack(spacing: 12) {
+            VStack(spacing: 8) {
                 Button(action: { NSWorkspace.shared.open(URL(string: "https://platform.deepseek.com/usage")!) }) {
                     VStack(alignment: .leading, spacing: 4) {
                         Text("DeepSeek").font(.caption).foregroundColor(.secondary)
