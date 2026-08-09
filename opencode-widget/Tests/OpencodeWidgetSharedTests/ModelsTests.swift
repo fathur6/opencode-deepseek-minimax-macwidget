@@ -114,6 +114,72 @@ final class ModelsTests: XCTestCase {
         XCTAssertFalse(WidgetCache(openAIQuota: OpenAIQuota(remainingPercent: 97)).isEmpty)
     }
 
+    // MARK: - QuotaResetTimeline (168h cycle math)
+
+    func testTimelineAtResetEndOfCycle() {
+        let reset = Date(timeIntervalSince1970: 1_000_000)
+        let now = reset
+        let timeline = QuotaResetTimeline(resetDate: reset)
+        // At the reset instant nothing remains → elapsed = 168h → fraction 1.0 (right edge)
+        XCTAssertEqual(timeline.remainingHours(at: now), 0, accuracy: 0.001)
+        XCTAssertEqual(timeline.elapsedFraction(at: now), 1.0, accuracy: 0.001)
+    }
+
+    func testTimelineJustAfterResetStartsAtLeftEdge() {
+        let reset = Date(timeIntervalSince1970: 1_000_000)
+        let now = reset.addingTimeInterval(-168 * 3600)
+        let timeline = QuotaResetTimeline(resetDate: reset)
+        // 168h remaining → elapsed = 0 → fraction 0 (left edge)
+        XCTAssertEqual(timeline.remainingHours(at: now), 168, accuracy: 0.001)
+        XCTAssertEqual(timeline.elapsedFraction(at: now), 0, accuracy: 0.001)
+    }
+
+    func testTimelineHalfwayElapsed() {
+        let reset = Date(timeIntervalSince1970: 1_000_000)
+        let now = reset.addingTimeInterval(-84 * 3600)
+        let timeline = QuotaResetTimeline(resetDate: reset)
+        XCTAssertEqual(timeline.elapsedFraction(at: now), 0.5, accuracy: 0.001)
+    }
+
+    func testTimelineClampedToFullAfterReset() {
+        let reset = Date(timeIntervalSince1970: 1_000_000)
+        let past = reset.addingTimeInterval(3600)
+        let timeline = QuotaResetTimeline(resetDate: reset)
+        XCTAssertEqual(timeline.remainingHours(at: past), 0, accuracy: 0.001)
+        XCTAssertEqual(timeline.elapsedFraction(at: past), 1.0, accuracy: 0.001)
+    }
+
+    func testTimelineRoundedRemainingHoursFormula() {
+        let reset = Date(timeIntervalSince1970: 1_000_000)
+        let now = reset.addingTimeInterval(-167.4 * 3600)
+        let timeline = QuotaResetTimeline(resetDate: reset)
+        // 167.4 remaining rounds to 167 → elapsed = 168 − 167 = 1h
+        XCTAssertEqual(timeline.elapsedHours(at: now), 1, accuracy: 0.001)
+    }
+
+    func testTimelineNegativeRemainingClampsToZero() {
+        let reset = Date(timeIntervalSince1970: 1_000_000)
+        let now = reset.addingTimeInterval(7200)
+        let timeline = QuotaResetTimeline(resetDate: reset)
+        XCTAssertEqual(timeline.remainingHours(at: now), 0, accuracy: 0.001)
+    }
+
+    func testTimelineApproachingResetMarkerNearRightEdge() {
+        let reset = Date(timeIntervalSince1970: 1_000_000)
+        let now = reset.addingTimeInterval(-0.4 * 3600)
+        let timeline = QuotaResetTimeline(resetDate: reset)
+        // 0.4h remaining rounds to 0 → elapsed = 168h → fraction 1.0
+        XCTAssertEqual(timeline.elapsedFraction(at: now), 1.0, accuracy: 0.001)
+    }
+
+    func testTimelineEarlyCycleMarkerNearLeftEdge() {
+        let reset = Date(timeIntervalSince1970: 1_000_000)
+        let now = reset.addingTimeInterval(-167.6 * 3600)
+        let timeline = QuotaResetTimeline(resetDate: reset)
+        // 167.6h remaining rounds to 168 → elapsed = 0h → fraction 0
+        XCTAssertEqual(timeline.elapsedFraction(at: now), 0, accuracy: 0.001)
+    }
+
     // MARK: - MiniMaxUsage
 
     func testMiniMaxUsagePercentage() {

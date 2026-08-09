@@ -110,6 +110,36 @@ public struct OpenAIQuota: Codable, Equatable, Sendable {
     }
 }
 
+/// Pure math for the 168-hour reset-cycle timeline. Marker position =
+/// elapsed hours in the cycle = `cycleHours − rounded remaining hours`,
+/// expressed as a fraction 0...1 of the bar width. SwiftUI-free so it is
+/// unit-testable in the shared layer.
+public struct QuotaResetTimeline: Sendable, Equatable {
+    public static let cycleHours: Double = 168
+
+    public let resetDate: Date
+
+    public init(resetDate: Date) {
+        self.resetDate = resetDate
+    }
+
+    /// Whole hours remaining until reset (clamped ≥ 0; 0 after reset).
+    public func remainingHours(at now: Date = Date()) -> Double {
+        max(0, resetDate.timeIntervalSince(now) / 3600)
+    }
+
+    /// Elapsed hours in the cycle = `cycleHours − rounded remaining hours`,
+    /// clamped to 0...cycleHours.
+    public func elapsedHours(at now: Date = Date()) -> Double {
+        min(QuotaResetTimeline.cycleHours, max(0, QuotaResetTimeline.cycleHours - remainingHours(at: now).rounded()))
+    }
+
+    /// Marker x-fraction (0...1) of the bar width for the given instant.
+    public func elapsedFraction(at now: Date = Date()) -> Double {
+        min(1, max(0, elapsedHours(at: now) / QuotaResetTimeline.cycleHours))
+    }
+}
+
 public struct WidgetCache: Codable {
     public let lastUpdated: Date
     public var deepseek: ProviderBalance

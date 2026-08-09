@@ -115,7 +115,13 @@ struct MenuContent: View {
 
     static func resetText(_ date: Date?) -> String {
         guard let date else { return "" }
-        return "Resets " + date.formatted(.dateTime.month(.abbreviated).day())
+        return "Resets " + date.formatted(.dateTime.month(.abbreviated).day().hour().minute())
+    }
+
+    static func elapsedText(resetDate: Date?, now: Date = Date()) -> String? {
+        guard let resetDate else { return nil }
+        let hours = QuotaResetTimeline(resetDate: resetDate).elapsedHours(at: now)
+        return String(format: "%.0fh of 168h", hours)
     }
 
     var body: some View {
@@ -138,6 +144,11 @@ struct MenuContent: View {
                     Text("OpenAI").font(.caption).foregroundColor(.secondary)
                     Text(Self.quotaText(menuState.openAIQuota))
                         .font(.headline).fontWeight(.semibold).monospacedDigit()
+                    QuotaResetBar(
+                        remainingPercent: menuState.openAIQuota?.remainingPercent,
+                        resetDate: menuState.openAIQuota?.resetDate
+                    )
+                    .padding(.top, 2)
                     Text(Self.resetText(menuState.openAIQuota?.resetDate))
                         .font(.caption2).foregroundColor(.secondary)
                 }
