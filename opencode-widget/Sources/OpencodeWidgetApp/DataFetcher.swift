@@ -8,6 +8,7 @@ enum DataFetcher {
     static let deepseekBalanceURL = URL(string: "https://api.deepseek.com/user/balance")!
     static let minimaxUsageURL = URL(string: "https://api.minimax.io/v1/api/openplatform/coding_plan/remains")!
     static let minimaxCreditURL = URL(string: "https://platform.minimax.io/account/query_balance")!
+    static let openAIUsageURL = OpenAIQuotaFetcher.usageURL
 
     static func fetchMiniMaxCredit(apiKey: String, session: URLSession = .shared) async -> Double? {
         var request = URLRequest(url: minimaxCreditURL)
@@ -122,18 +123,34 @@ enum DataFetcher {
         return val > 0 ? val : nil
     }
 
-    static func refreshAll(dbPath: String = "\(NSHomeDirectory())/.local/share/opencode/opencode.db", authPath: String = "\(NSHomeDirectory())/.local/share/opencode/auth.json", session: URLSession = .shared) async -> WidgetCache {
+    static func refreshAll(
+        dbPath: String = "\(NSHomeDirectory())/.local/share/opencode/opencode.db",
+        authPath: String = "\(NSHomeDirectory())/.local/share/opencode/auth.json",
+        session: URLSession = .shared,
+        openAIAuthPath: String = "\(NSHomeDirectory())/.codex/auth.json",
+        cacheSuiteName: String = DataStore.defaultSuiteName,
+        cacheFileName: String = DataStore.defaultFileName,
+        openAIQuotaFetcher: @escaping @Sendable (String, URLSession, URL) async -> OpenAIQuota? = { authPath, session, endpoint in
+            await OpenAIQuotaFetcher.fetch(authPath: authPath, session: session, endpoint: endpoint)
+        }
+    ) async -> WidgetCache {
         let usage = queryUsageFromDB(dbPath: dbPath)
+        let previousQuota = DataStore.load(suiteName: cacheSuiteName, fileName: cacheFileName)?.openAIQuota
+        let fetchedOpenAIQuotaTask = Task {
+            await openAIQuotaFetcher(openAIAuthPath, session, openAIUsageURL)
+        }
 
         guard let creds = AuthReader.readCredentials(authPath: authPath) else {
             let miniCredit = readSavedMiniMaxCredit()
+            let openAIQuota = await fetchedOpenAIQuotaTask.value ?? previousQuota
             return WidgetCache(
                 lastUpdated: Date(),
                 deepseek: ProviderBalance(balance: nil, currency: "USD"),
                 minimax: ProviderBalance(balance: miniCredit ?? readSavedMiniMaxBalance(), currency: "USD"),
                 minimaxCredit: miniCredit,
                 minimaxCreditFetched: miniCredit != nil ? Date() : nil,
-                dailyUsage: usage
+                dailyUsage: usage,
+                openAIQuota: openAIQuota
             )
         }
 
@@ -144,6 +161,7 @@ enum DataFetcher {
         async let mmUsage = fetchMiniMaxUsage(apiKey: mk, session: session)
 
         let (deepseekBalance, minimaxCredit, minimaxUsage) = await (dsBalance, mmCredit, mmUsage)
+        let openAIQuota = await fetchedOpenAIQuotaTask.value
 
         let minimaxCreditVal: Double?
         if let credit = minimaxCredit {
@@ -158,9 +176,11 @@ enum DataFetcher {
             lastUpdated: Date(),
             deepseek: ProviderBalance(balance: deepseekBalance, currency: "USD"),
             minimax: ProviderBalance(balance: minimaxBalance, currency: "USD"),
+            minimaxUsage: minimaxUsage,
             minimaxCredit: minimaxCreditVal,
             minimaxCreditFetched: minimaxCredit != nil ? Date() : nil,
-            dailyUsage: usage
+            dailyUsage: usage,
+            openAIQuota: openAIQuota ?? previousQuota
         )
     }
 }

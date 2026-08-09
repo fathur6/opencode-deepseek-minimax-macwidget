@@ -100,6 +100,16 @@ public struct ModelUsageRow: Codable, Identifiable, Equatable {
     }
 }
 
+public struct OpenAIQuota: Codable, Equatable, Sendable {
+    public var remainingPercent: Double?
+    public var resetDate: Date?
+
+    public init(remainingPercent: Double? = nil, resetDate: Date? = nil) {
+        self.remainingPercent = remainingPercent
+        self.resetDate = resetDate
+    }
+}
+
 public struct WidgetCache: Codable {
     public let lastUpdated: Date
     public var deepseek: ProviderBalance
@@ -108,8 +118,9 @@ public struct WidgetCache: Codable {
     public var minimaxCredit: Double?
     public var minimaxCreditFetched: Date?
     public var dailyUsage: [DailyUsageRow]
+    public var openAIQuota: OpenAIQuota?
 
-    public init(lastUpdated: Date = Date(), deepseek: ProviderBalance = ProviderBalance(), minimax: ProviderBalance = ProviderBalance(), minimaxUsage: MiniMaxUsage? = nil, minimaxCredit: Double? = nil, minimaxCreditFetched: Date? = nil, dailyUsage: [DailyUsageRow] = []) {
+    public init(lastUpdated: Date = Date(), deepseek: ProviderBalance = ProviderBalance(), minimax: ProviderBalance = ProviderBalance(), minimaxUsage: MiniMaxUsage? = nil, minimaxCredit: Double? = nil, minimaxCreditFetched: Date? = nil, dailyUsage: [DailyUsageRow] = [], openAIQuota: OpenAIQuota? = nil) {
         self.lastUpdated = lastUpdated
         self.deepseek = deepseek
         self.minimax = minimax
@@ -117,9 +128,10 @@ public struct WidgetCache: Codable {
         self.minimaxCredit = minimaxCredit
         self.minimaxCreditFetched = minimaxCreditFetched
         self.dailyUsage = dailyUsage
+        self.openAIQuota = openAIQuota
     }
 
     public var isEmpty: Bool {
-        dailyUsage.isEmpty && deepseek.balance == nil && minimax.balance == nil
+        dailyUsage.isEmpty && deepseek.balance == nil && minimax.balance == nil && openAIQuota == nil
     }
 }

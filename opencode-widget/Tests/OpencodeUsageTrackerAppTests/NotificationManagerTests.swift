@@ -2,7 +2,13 @@ import XCTest
 @testable import OpencodeUsageTrackerApp
 @testable import OpencodeWidgetShared
 
+@MainActor
 final class NotificationManagerTests: XCTestCase {
+    override func setUp() {
+        super.setUp()
+        NotificationManager.resetAlerts()
+    }
+
     func testWarningAt85Percent() {
         let remain = MiniMaxModelRemain(modelName: "test", currentIntervalTotalCount: 100, currentIntervalRemainingCount: 15, startTime: 0, endTime: 0, remainsTime: 0)
         let alerts = NotificationManager.checkThresholds(models: [remain])

@@ -94,6 +94,26 @@ final class ModelsTests: XCTestCase {
         XCTAssertFalse(cache.isEmpty)
     }
 
+    func testOpenAIQuotaRoundTrip() throws {
+        let quota = OpenAIQuota(
+            remainingPercent: 97,
+            resetDate: Date(timeIntervalSince1970: 1_752_556_800)
+        )
+        let data = try JSONEncoder().encode(quota)
+        XCTAssertEqual(try JSONDecoder().decode(OpenAIQuota.self, from: data), quota)
+    }
+
+    func testWidgetCacheRoundTripIncludesOpenAIQuota() throws {
+        let quota = OpenAIQuota(remainingPercent: 97, resetDate: Date(timeIntervalSince1970: 0))
+        let original = WidgetCache(openAIQuota: quota)
+        let data = try JSONEncoder().encode(original)
+        XCTAssertEqual(try JSONDecoder().decode(WidgetCache.self, from: data).openAIQuota, quota)
+    }
+
+    func testWidgetCacheWithOnlyOpenAIQuotaIsNotEmpty() {
+        XCTAssertFalse(WidgetCache(openAIQuota: OpenAIQuota(remainingPercent: 97)).isEmpty)
+    }
+
     // MARK: - MiniMaxUsage
 
     func testMiniMaxUsagePercentage() {

@@ -56,7 +56,7 @@ public enum NotificationManager {
         alertRegistry[key] = Date()
     }
 
-    static func resetAlerts() {
+    nonisolated static func resetAlerts() {
         alertRegistry = [:]
     }
 }
