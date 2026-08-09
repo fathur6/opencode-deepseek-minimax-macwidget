@@ -43,15 +43,15 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| QUOTA-01 | (mapped in ROADMAP.md) | Not started |
-| QUOTA-02 | (mapped in ROADMAP.md) | Not started |
-| QUOTA-03 | (mapped in ROADMAP.md) | Not started |
-| TIME-01 | (mapped in ROADMAP.md) | Not started |
-| TIME-02 | (mapped in ROADMAP.md) | Not started |
-| TIME-03 | (mapped in ROADMAP.md) | Not started |
-| TIME-04 | (mapped in ROADMAP.md) | Not started |
-| UIUX-01 | (mapped in ROADMAP.md) | Not started |
-| UIUX-02 | (mapped in ROADMAP.md) | Not started |
-| UIUX-03 | (mapped in ROADMAP.md) | Not started |
-| UIUX-04 | (mapped in ROADMAP.md) | Not started |
-| UIUX-05 | (mapped in ROADMAP.md) | Not started |
+| QUOTA-01 | Phase 1 | Not started |
+| QUOTA-02 | Phase 1 | Not started |
+| QUOTA-03 | Phase 1 | Not started |
+| TIME-01 | Phase 2 | Not started |
+| TIME-02 | Phase 2 | Not started |
+| TIME-03 | Phase 2 | Not started |
+| TIME-04 | Phase 2 | Not started |
+| UIUX-01 | Phase 3 | Not started |
+| UIUX-02 | Phase 3 | Not started |
+| UIUX-03 | Phase 3 | Not started |
+| UIUX-04 | Phase 3 | Not started |
+| UIUX-05 | Phase 4 | Not started |
