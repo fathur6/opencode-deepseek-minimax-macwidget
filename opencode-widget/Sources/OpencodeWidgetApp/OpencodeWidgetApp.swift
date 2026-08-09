@@ -126,7 +126,7 @@ struct MenuContent: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            VStack(spacing: 8) {
+            HStack(spacing: 8) {
                 balanceCard(title: "DeepSeek", balance: menuState.deepseekBalance) {
                     NSWorkspace.shared.open(URL(string: "https://platform.deepseek.com/usage")!)
                 }
@@ -175,13 +175,21 @@ struct MenuContent: View {
         .frame(width: 220)
     }
 
+    private static let usdToMYR: Double = 4.5
+
     private func balanceCard(title: String, balance: Double?, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 2) {
                 Text(title).font(.caption).foregroundColor(.secondary)
-                Text(balance.map { String(format: "$%.2f", $0) } ?? "--")
-                    .font(.headline).fontWeight(.semibold).monospacedDigit()
-                Text("USD").font(.caption2).foregroundColor(.secondary)
+                if let balance {
+                    Text(String(format: "$%.2f", balance))
+                        .font(.headline).fontWeight(.semibold).monospacedDigit()
+                    Text(String(format: "RM%.2f", balance * Self.usdToMYR))
+                        .font(.caption2).foregroundColor(.secondary).monospacedDigit()
+                } else {
+                    Text("--").font(.headline).fontWeight(.semibold).monospacedDigit()
+                    Text("RM--").font(.caption2).foregroundColor(.secondary)
+                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(8)
