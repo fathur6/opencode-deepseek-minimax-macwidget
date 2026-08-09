@@ -38,13 +38,15 @@ final class OpenAIQuotaFetcherTests: XCTestCase {
     }
 
     func testFetchParsesWeeklyWindowAndSendsOAuthHeaders() async {
-        QuotaMockURLProtocol.responseData = Data(#"{
-          "plan_type": "plus",
-          "rate_limit": {
-            "primary_window": {"used_percent": 10, "reset_at": 1784764800},
-            "secondary_window": {"used_percent": 3, "reset_at": 1784808960}
+        QuotaMockURLProtocol.responseData = Data(#"""
+          {
+            "plan_type": "plus",
+            "rate_limit": {
+              "primary_window": {"used_percent": 10, "reset_at": 1784764800},
+              "secondary_window": {"used_percent": 3, "reset_at": 1784808960}
+            }
           }
-        }"#.utf8)
+        """#.utf8)
         let session = makeSession()
         let credentials = OpenAIAuthCredentials(accessToken: "test-token", accountID: "acct-test")
 
@@ -57,9 +59,11 @@ final class OpenAIQuotaFetcherTests: XCTestCase {
     }
 
     func testFetchFallsBackToPrimaryWindowWhenWeeklyWindowMissing() async {
-        QuotaMockURLProtocol.responseData = Data(#"{
-          "rate_limit": {"primary_window": {"used_percent": 25, "reset_at": 1784764800}}
-        }"#.utf8)
+        QuotaMockURLProtocol.responseData = Data(#"""
+          {
+            "rate_limit": {"primary_window": {"used_percent": 25, "reset_at": 1784764800}}
+          }
+        """#.utf8)
 
         let result = await OpenAIQuotaFetcher.fetch(
             credentials: OpenAIAuthCredentials(accessToken: "test-token"),
