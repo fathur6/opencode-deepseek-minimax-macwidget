@@ -110,6 +110,29 @@ public struct OpenAIQuota: Codable, Equatable, Sendable {
     }
 }
 
+public struct HourlyUsageBucket: Codable, Equatable, Sendable, Identifiable {
+    public var id: Date { hour }
+    public let hour: Date
+    public let openAIInputTokens: Int64
+    public let deepseekInputTokens: Int64
+    public let smoothedOpenAIInputTokens: Double
+    public let smoothedDeepseekInputTokens: Double
+
+    public init(
+        hour: Date,
+        openAIInputTokens: Int64 = 0,
+        deepseekInputTokens: Int64 = 0,
+        smoothedOpenAIInputTokens: Double? = nil,
+        smoothedDeepseekInputTokens: Double? = nil
+    ) {
+        self.hour = hour
+        self.openAIInputTokens = openAIInputTokens
+        self.deepseekInputTokens = deepseekInputTokens
+        self.smoothedOpenAIInputTokens = smoothedOpenAIInputTokens ?? Double(openAIInputTokens)
+        self.smoothedDeepseekInputTokens = smoothedDeepseekInputTokens ?? Double(deepseekInputTokens)
+    }
+}
+
 /// Pure math for the 168-hour reset-cycle timeline. Marker position =
 /// elapsed hours in the cycle = `cycleHours − rounded remaining hours`,
 /// expressed as a fraction 0...1 of the bar width. SwiftUI-free so it is
@@ -149,8 +172,9 @@ public struct WidgetCache: Codable {
     public var minimaxCreditFetched: Date?
     public var dailyUsage: [DailyUsageRow]
     public var openAIQuota: OpenAIQuota?
+    public var hourlyUsage: [HourlyUsageBucket]
 
-    public init(lastUpdated: Date = Date(), deepseek: ProviderBalance = ProviderBalance(), minimax: ProviderBalance = ProviderBalance(), minimaxUsage: MiniMaxUsage? = nil, minimaxCredit: Double? = nil, minimaxCreditFetched: Date? = nil, dailyUsage: [DailyUsageRow] = [], openAIQuota: OpenAIQuota? = nil) {
+    public init(lastUpdated: Date = Date(), deepseek: ProviderBalance = ProviderBalance(), minimax: ProviderBalance = ProviderBalance(), minimaxUsage: MiniMaxUsage? = nil, minimaxCredit: Double? = nil, minimaxCreditFetched: Date? = nil, dailyUsage: [DailyUsageRow] = [], openAIQuota: OpenAIQuota? = nil, hourlyUsage: [HourlyUsageBucket] = []) {
         self.lastUpdated = lastUpdated
         self.deepseek = deepseek
         self.minimax = minimax
@@ -159,9 +183,28 @@ public struct WidgetCache: Codable {
         self.minimaxCreditFetched = minimaxCreditFetched
         self.dailyUsage = dailyUsage
         self.openAIQuota = openAIQuota
+        self.hourlyUsage = hourlyUsage
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case lastUpdated, deepseek, minimax, minimaxUsage, minimaxCredit
+        case minimaxCreditFetched, dailyUsage, openAIQuota, hourlyUsage
+    }
+
+    public init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        lastUpdated = try values.decode(Date.self, forKey: .lastUpdated)
+        deepseek = try values.decode(ProviderBalance.self, forKey: .deepseek)
+        minimax = try values.decode(ProviderBalance.self, forKey: .minimax)
+        minimaxUsage = try values.decodeIfPresent(MiniMaxUsage.self, forKey: .minimaxUsage)
+        minimaxCredit = try values.decodeIfPresent(Double.self, forKey: .minimaxCredit)
+        minimaxCreditFetched = try values.decodeIfPresent(Date.self, forKey: .minimaxCreditFetched)
+        dailyUsage = try values.decodeIfPresent([DailyUsageRow].self, forKey: .dailyUsage) ?? []
+        openAIQuota = try values.decodeIfPresent(OpenAIQuota.self, forKey: .openAIQuota)
+        hourlyUsage = try values.decodeIfPresent([HourlyUsageBucket].self, forKey: .hourlyUsage) ?? []
     }
 
     public var isEmpty: Bool {
-        dailyUsage.isEmpty && deepseek.balance == nil && minimax.balance == nil && openAIQuota == nil
+        dailyUsage.isEmpty && hourlyUsage.isEmpty && deepseek.balance == nil && minimax.balance == nil && openAIQuota == nil
     }
 }

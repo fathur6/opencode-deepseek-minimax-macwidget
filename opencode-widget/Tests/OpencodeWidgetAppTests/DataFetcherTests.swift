@@ -351,6 +351,35 @@ final class DataFetcherTests: XCTestCase {
         XCTAssertEqual(cache.openAIQuota, expected)
     }
 
+    func testRefreshAllPublishesReadableHistory() async throws {
+        let bucket = HourlyUsageBucket(hour: Date(timeIntervalSince1970: 0), openAIInputTokens: 4)
+
+        let cache = await DataFetcher.refreshAll(
+            dbPath: tempDBPath,
+            authPath: tempAuthPath,
+            cacheSuiteName: tempCachePath,
+            historyFetcher: { UsageHistoryResult(buckets: [bucket], anySourceReadable: true) },
+            openAIQuotaFetcher: { _, _, _ in nil }
+        )
+
+        XCTAssertEqual(cache.hourlyUsage, [bucket])
+    }
+
+    func testRefreshAllPreservesCachedHistoryWhenEverySourceUnavailable() async throws {
+        let cached = HourlyUsageBucket(hour: Date(timeIntervalSince1970: 0), deepseekInputTokens: 7)
+        DataStore.save(cache: WidgetCache(hourlyUsage: [cached]), suiteName: tempCachePath)
+
+        let cache = await DataFetcher.refreshAll(
+            dbPath: tempDBPath,
+            authPath: tempAuthPath,
+            cacheSuiteName: tempCachePath,
+            historyFetcher: { UsageHistoryResult(buckets: [], anySourceReadable: false) },
+            openAIQuotaFetcher: { _, _, _ in nil }
+        )
+
+        XCTAssertEqual(cache.hourlyUsage, [cached])
+    }
+
     // MARK: - Helpers
 
     private func createDB() {

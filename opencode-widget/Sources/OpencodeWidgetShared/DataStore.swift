@@ -10,8 +10,20 @@ public enum DataStore {
             try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
             return dir.appendingPathComponent(fileName)
         }
-        return FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: suiteName)?
-            .appendingPathComponent(fileName)
+        if suiteName == defaultSuiteName,
+           let applicationSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first {
+            let directory = applicationSupport.appendingPathComponent("OpencodeWidgetApp", isDirectory: true)
+            try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            return directory.appendingPathComponent(fileName)
+        }
+        if let groupURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: suiteName) {
+            try? FileManager.default.createDirectory(at: groupURL, withIntermediateDirectories: true)
+            var isDirectory: ObjCBool = false
+            if FileManager.default.fileExists(atPath: groupURL.path, isDirectory: &isDirectory), isDirectory.boolValue {
+                return groupURL.appendingPathComponent(fileName)
+            }
+        }
+        return nil
     }
 
     public static func save(cache: WidgetCache, suiteName: String = defaultSuiteName, fileName: String = defaultFileName) {

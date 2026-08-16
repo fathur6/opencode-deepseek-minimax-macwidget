@@ -3,6 +3,40 @@ import XCTest
 
 final class ModelsTests: XCTestCase {
 
+    func testHourlyUsageBucketAndCacheRoundTrip() throws {
+        let bucket = HourlyUsageBucket(
+            hour: Date(timeIntervalSince1970: 3_600),
+            openAIInputTokens: 12,
+            deepseekInputTokens: 9,
+            smoothedOpenAIInputTokens: 6.5,
+            smoothedDeepseekInputTokens: 4.5
+        )
+        let original = WidgetCache(hourlyUsage: [bucket])
+
+        let data = try JSONEncoder().encode(original)
+        let decoded = try JSONDecoder().decode(WidgetCache.self, from: data)
+
+        XCTAssertEqual(decoded.hourlyUsage, [bucket])
+        XCTAssertFalse(decoded.isEmpty)
+    }
+
+    func testWidgetCacheDecodesLegacyPayloadWithoutHourlyUsage() throws {
+        let json = #"""
+        {
+          "lastUpdated": 0,
+          "deepseek": {"currency": "USD"},
+          "minimax": {"currency": "USD"},
+          "dailyUsage": []
+        }
+        """#
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .secondsSince1970
+
+        let decoded = try decoder.decode(WidgetCache.self, from: Data(json.utf8))
+
+        XCTAssertEqual(decoded.hourlyUsage, [])
+    }
+
     // MARK: - ProviderBalance encoding/decoding round-trip
 
     func testProviderBalanceEncodingDecodingRoundTrip() throws {

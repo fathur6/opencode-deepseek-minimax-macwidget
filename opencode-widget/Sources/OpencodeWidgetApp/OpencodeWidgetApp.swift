@@ -11,6 +11,7 @@ class MenuBarState {
     var deepseekBalance: Double?
     var minimaxBalance: Double?
     var openAIQuota: OpenAIQuota?
+    var hourlyUsage: [HourlyUsageBucket] = []
     var lastUpdated: Date?
 }
 
@@ -100,6 +101,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         MenuBarState.shared.deepseekBalance = cache.deepseek.balance
         MenuBarState.shared.minimaxBalance = cache.minimax.balance
         MenuBarState.shared.openAIQuota = cache.openAIQuota
+        MenuBarState.shared.hourlyUsage = cache.hourlyUsage
         MenuBarState.shared.lastUpdated = cache.lastUpdated
     }
 }
@@ -161,6 +163,10 @@ struct MenuContent: View {
             .padding(.horizontal, 12)
             .padding(.top, 8)
 
+            UsageHistoryChart(buckets: menuState.hourlyUsage)
+                .padding(.horizontal, 12)
+                .padding(.top, 8)
+
             Divider().padding(.vertical, 8)
 
             VStack(spacing: 2) {
@@ -206,6 +212,7 @@ struct MenuContent: View {
             MenuBarState.shared.deepseekBalance = cache.deepseek.balance
             MenuBarState.shared.minimaxBalance = cache.minimax.balance
             MenuBarState.shared.openAIQuota = cache.openAIQuota
+            MenuBarState.shared.hourlyUsage = cache.hourlyUsage
             MenuBarState.shared.lastUpdated = cache.lastUpdated
         }
     }

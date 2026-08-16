@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		01F77A1B1F071BE48193AF5A /* UsageHistoryFetcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F719CE050DFA461FB66FEC8 /* UsageHistoryFetcher.swift */; };
+		56E338E3EEB1E303883F6A7E /* UsageHistoryChart.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E00851A8A0E864B3CA65306 /* UsageHistoryChart.swift */; };
 		6DCAA42AF8C20B9FF53AC509 /* Resources in Resources */ = {isa = PBXBuildFile; fileRef = 51F49427C2E704920BB39BC6 /* Resources */; };
 		75040126C34521ADF64424E2 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D411F9C4A2DCADC9505ECCB /* Models.swift */; };
 		80E136D28F9E4EA3EFBD33ED /* AuthReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F74B560C20096D25F2577DB /* AuthReader.swift */; };
@@ -24,8 +26,10 @@
 		19E8F206D00F9FF5F8046316 /* QuotaResetBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuotaResetBar.swift; sourceTree = "<group>"; };
 		51F49427C2E704920BB39BC6 /* Resources */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Resources; path = OpencodeWidgetApp/Resources; sourceTree = SOURCE_ROOT; };
 		5D411F9C4A2DCADC9505ECCB /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
+		6E00851A8A0E864B3CA65306 /* UsageHistoryChart.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageHistoryChart.swift; sourceTree = "<group>"; };
 		6F74B560C20096D25F2577DB /* AuthReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthReader.swift; sourceTree = "<group>"; };
 		711320B0D3258720311ED9F3 /* DataFetcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataFetcher.swift; sourceTree = "<group>"; };
+		8F719CE050DFA461FB66FEC8 /* UsageHistoryFetcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageHistoryFetcher.swift; sourceTree = "<group>"; };
 		D8D98E2BDD07CB050712D068 /* OpencodeWidgetApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpencodeWidgetApp.swift; sourceTree = "<group>"; };
 		FB7182CD74F3EC0F509DD489 /* OpencodeWidgetApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = OpencodeWidgetApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		FC128F7F9E1CBA252DDF54E4 /* OpenAIQuotaFetcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenAIQuotaFetcher.swift; sourceTree = "<group>"; };
@@ -40,6 +44,8 @@
 				FC128F7F9E1CBA252DDF54E4 /* OpenAIQuotaFetcher.swift */,
 				D8D98E2BDD07CB050712D068 /* OpencodeWidgetApp.swift */,
 				19E8F206D00F9FF5F8046316 /* QuotaResetBar.swift */,
+				6E00851A8A0E864B3CA65306 /* UsageHistoryChart.swift */,
+				8F719CE050DFA461FB66FEC8 /* UsageHistoryFetcher.swift */,
 				EA10C51ECD21F5443096DAF2 /* Resources */,
 			);
 			name = OpencodeWidgetApp;
@@ -170,6 +176,8 @@
 				B8D49EE8A1706B2E80260EA3 /* OpenAIQuotaFetcher.swift in Sources */,
 				84351CF63C07C3F339734BE3 /* OpencodeWidgetApp.swift in Sources */,
 				8EFBBB6AB74D674F77C06142 /* QuotaResetBar.swift in Sources */,
+				56E338E3EEB1E303883F6A7E /* UsageHistoryChart.swift in Sources */,
+				01F77A1B1F071BE48193AF5A /* UsageHistoryFetcher.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
