@@ -33,6 +33,16 @@ The expanded version adds a ChatGPT Plus quota card below the DeepSeek and MiniM
 
 *Example of the DeepSeek + MiniMax + ChatGPT Plus widget layout.*
 
+### Latest Iteration: 168-Hour Usage Chart
+
+The current widget adds a 168-hour smoothed input-token chart directly below
+the OpenAI quota card. It shows OpenAI in green and DeepSeek in blue, with
+calendar dates and month labels on the x-axis.
+
+![OpenCode widget with OpenAI and DeepSeek 168-hour usage chart](https://i.postimg.cc/PfvC4qr2/Screenshot-2026-08-16-at-11-02-16-PM.png)
+
+*Latest iteration with OpenAI quota, provider balances, and the two-line usage chart.*
+
 ## API Approach
 
 ### DeepSeek — `/user/balance`
