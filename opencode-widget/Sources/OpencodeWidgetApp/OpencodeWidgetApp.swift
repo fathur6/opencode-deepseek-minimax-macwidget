@@ -14,6 +14,15 @@ class MenuBarState {
     var hourlyUsage: [HourlyUsageBucket] = []
     var deepseekBalanceHistory: [DeepSeekBalanceSnapshot] = []
     var lastUpdated: Date?
+
+    func update(with cache: WidgetCache) {
+        deepseekBalance = cache.deepseek.balance
+        minimaxBalance = cache.minimax.balance
+        openAIQuota = cache.openAIQuota
+        hourlyUsage = cache.hourlyUsage
+        deepseekBalanceHistory = cache.deepseekBalanceHistory
+        lastUpdated = cache.lastUpdated
+    }
 }
 
 @main
@@ -99,12 +108,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func updateMenuState(with cache: WidgetCache) {
-        MenuBarState.shared.deepseekBalance = cache.deepseek.balance
-        MenuBarState.shared.minimaxBalance = cache.minimax.balance
-        MenuBarState.shared.openAIQuota = cache.openAIQuota
-        MenuBarState.shared.hourlyUsage = cache.hourlyUsage
-        MenuBarState.shared.deepseekBalanceHistory = cache.deepseekBalanceHistory
-        MenuBarState.shared.lastUpdated = cache.lastUpdated
+        MenuBarState.shared.update(with: cache)
     }
 }
 
@@ -237,11 +241,7 @@ struct MenuContent: View {
         Task {
             let cache = await DataFetcher.refreshAll()
             DataStore.save(cache: cache)
-            MenuBarState.shared.deepseekBalance = cache.deepseek.balance
-            MenuBarState.shared.minimaxBalance = cache.minimax.balance
-            MenuBarState.shared.openAIQuota = cache.openAIQuota
-            MenuBarState.shared.hourlyUsage = cache.hourlyUsage
-            MenuBarState.shared.lastUpdated = cache.lastUpdated
+            MenuBarState.shared.update(with: cache)
         }
     }
 }

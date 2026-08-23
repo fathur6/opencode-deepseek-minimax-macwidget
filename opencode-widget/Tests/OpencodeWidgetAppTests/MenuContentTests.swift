@@ -20,4 +20,13 @@ final class MenuContentTests: XCTestCase {
     func testResetTextIsEmptyWhenMissing() {
         XCTAssertEqual(MenuContent.resetText(nil), "")
     }
+
+    func testMenuBarStateUpdateKeepsDeepSeekBalanceHistory() {
+        let state = MenuBarState()
+        let history = [DeepSeekBalanceSnapshot(hour: Date(timeIntervalSince1970: 3_600), remainingRM: 45)]
+
+        state.update(with: WidgetCache(deepseekBalanceHistory: history))
+
+        XCTAssertEqual(state.deepseekBalanceHistory, history)
+    }
 }
