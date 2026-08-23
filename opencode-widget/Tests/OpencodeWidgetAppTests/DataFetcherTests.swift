@@ -380,7 +380,67 @@ final class DataFetcherTests: XCTestCase {
         XCTAssertEqual(cache.hourlyUsage, [cached])
     }
 
+    func testRefreshAllAppendsBalanceHistoryOnlyForSuccessfulDeepSeekFetch() async throws {
+        try #"{"deepseek":{"key":"test-key"},"minimax":{"key":"mm-test-key"}}"#.write(toFile: tempAuthPath, atomically: true, encoding: .utf8)
+        MockURLProtocol.responses["https://api.deepseek.com/user/balance"] = (
+            #"{"balance_infos":[{"total_balance":"42.00"}]}"#.data(using: .utf8), nil, 200
+        )
+        let previous = WidgetCache(deepseekBalanceHistory: [
+            DeepSeekBalanceSnapshot(hour: Date(timeIntervalSince1970: 1_800_000_000), remainingRM: 45)
+        ])
+        DataStore.save(cache: previous, suiteName: tempCachePath)
+
+        let cache = await DataFetcher.refreshAll(
+            dbPath: tempDBPath,
+            authPath: tempAuthPath,
+            session: makeSession(),
+            cacheSuiteName: tempCachePath,
+            historyNow: Date(timeIntervalSince1970: 1_800_003_600)
+        )
+
+        XCTAssertEqual(cache.deepseekBalanceHistory.last?.remainingRM, 189)
+    }
+
+    func testRefreshAllPreservesBalanceHistoryForMalformedDeepSeekResponse() async throws {
+        try #"{"deepseek":{"key":"test-key"},"minimax":{"key":"mm-test-key"}}"#.write(toFile: tempAuthPath, atomically: true, encoding: .utf8)
+        MockURLProtocol.responses["https://api.deepseek.com/user/balance"] = (
+            #"{"balance_infos":[{}]}"#.data(using: .utf8), nil, 200
+        )
+        let snapshots = [DeepSeekBalanceSnapshot(hour: Date(timeIntervalSince1970: 1_800_000_000), remainingRM: 45)]
+        DataStore.save(cache: WidgetCache(deepseekBalanceHistory: snapshots), suiteName: tempCachePath)
+
+        let cache = await DataFetcher.refreshAll(
+            dbPath: tempDBPath,
+            authPath: tempAuthPath,
+            session: makeSession(),
+            cacheSuiteName: tempCachePath,
+            historyNow: Date(timeIntervalSince1970: 1_800_003_600)
+        )
+
+        XCTAssertEqual(cache.deepseekBalanceHistory, snapshots)
+    }
+
+    func testRefreshAllPreservesBalanceHistoryWhenAuthenticationIsMissing() async {
+        let snapshots = [DeepSeekBalanceSnapshot(hour: Date(timeIntervalSince1970: 1_800_000_000), remainingRM: 45)]
+        DataStore.save(cache: WidgetCache(deepseekBalanceHistory: snapshots), suiteName: tempCachePath)
+
+        let cache = await DataFetcher.refreshAll(
+            dbPath: tempDBPath,
+            authPath: tempAuthPath,
+            cacheSuiteName: tempCachePath,
+            historyNow: Date(timeIntervalSince1970: 1_800_003_600)
+        )
+
+        XCTAssertEqual(cache.deepseekBalanceHistory, snapshots)
+    }
+
     // MARK: - Helpers
+
+    private func makeSession() -> URLSession {
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [MockURLProtocol.self]
+        return URLSession(configuration: config)
+    }
 
     private func createDB() {
         var db: OpaquePointer?

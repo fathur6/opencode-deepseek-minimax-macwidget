@@ -23,7 +23,7 @@ struct UsageHistoryResult: Sendable {
 /// Assembles local client histories additively. Hermes rows are cumulative
 /// backfill attributed to `last_seen`, not exact per-request timestamps.
 struct UsageHistoryFetcher: Sendable {
-    static let bucketCount = 168
+    static let bucketCount = DeepSeekBalanceHistory.maximumHours
 
     let now: Date
     let openCodeDatabasePath: String

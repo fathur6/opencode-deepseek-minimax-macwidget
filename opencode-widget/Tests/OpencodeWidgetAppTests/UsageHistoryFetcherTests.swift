@@ -17,9 +17,9 @@ final class UsageHistoryFetcherTests: XCTestCase {
         root = nil
     }
 
-    func testBucketingReturns168AlignedHoursAndTrailingMean() {
+    func testBucketingReturnsThirtyDaysOfAlignedHoursAndTrailingMean() {
         let endHour = floor(now.timeIntervalSince1970 / 3_600) * 3_600
-        let firstHour = endHour - 167 * 3_600
+        let firstHour = endHour - 719 * 3_600
         let events = [
             UsageTokenEvent(provider: .openAI, timestamp: Date(timeIntervalSince1970: firstHour), inputTokens: 3),
             UsageTokenEvent(provider: .openAI, timestamp: Date(timeIntervalSince1970: firstHour + 2 * 3_600), inputTokens: 9),
@@ -29,7 +29,7 @@ final class UsageHistoryFetcherTests: XCTestCase {
 
         let buckets = UsageHistoryFetcher.makeBuckets(events: events, now: now)
 
-        XCTAssertEqual(buckets.count, 168)
+        XCTAssertEqual(buckets.count, 720)
         XCTAssertEqual(buckets.first?.hour, Date(timeIntervalSince1970: firstHour))
         XCTAssertEqual(buckets.last?.hour, Date(timeIntervalSince1970: endHour))
         XCTAssertEqual(buckets[0].smoothedOpenAIInputTokens, 3)
@@ -137,7 +137,7 @@ final class UsageHistoryFetcherTests: XCTestCase {
             codexRoots: [emptyRoot]
         ).fetch()
         XCTAssertTrue(readable.anySourceReadable)
-        XCTAssertEqual(readable.buckets.count, 168)
+        XCTAssertEqual(readable.buckets.count, 720)
         XCTAssertTrue(readable.buckets.allSatisfy { $0.openAIInputTokens == 0 && $0.deepseekInputTokens == 0 })
     }
 

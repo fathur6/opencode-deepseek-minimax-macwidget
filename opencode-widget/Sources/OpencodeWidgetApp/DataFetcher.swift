@@ -171,7 +171,8 @@ enum DataFetcher {
                 minimaxCreditFetched: miniCredit != nil ? Date() : nil,
                 dailyUsage: usage,
                 openAIQuota: openAIQuota,
-                hourlyUsage: history.anySourceReadable ? history.buckets : previousCache?.hourlyUsage ?? []
+                hourlyUsage: history.anySourceReadable ? history.buckets : previousCache?.hourlyUsage ?? [],
+                deepseekBalanceHistory: previousCache?.deepseekBalanceHistory ?? []
             )
         }
 
@@ -182,6 +183,11 @@ enum DataFetcher {
         async let mmUsage = fetchMiniMaxUsage(apiKey: mk, session: session)
 
         let (deepseekBalance, minimaxCredit, minimaxUsage) = await (dsBalance, mmCredit, mmUsage)
+        let deepseekBalanceHistory = DeepSeekBalanceHistory.appending(
+            balanceUSD: deepseekBalance,
+            at: historyNow,
+            to: previousCache?.deepseekBalanceHistory ?? []
+        )
         let openAIQuota = await fetchedOpenAIQuotaTask.value
         let history = await historyTask.value
 
@@ -203,7 +209,8 @@ enum DataFetcher {
             minimaxCreditFetched: minimaxCredit != nil ? Date() : nil,
             dailyUsage: usage,
             openAIQuota: openAIQuota ?? previousQuota,
-            hourlyUsage: history.anySourceReadable ? history.buckets : previousCache?.hourlyUsage ?? []
+            hourlyUsage: history.anySourceReadable ? history.buckets : previousCache?.hourlyUsage ?? [],
+            deepseekBalanceHistory: deepseekBalanceHistory
         )
     }
 }
