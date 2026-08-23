@@ -172,7 +172,8 @@ enum DataFetcher {
                 dailyUsage: usage,
                 openAIQuota: openAIQuota,
                 hourlyUsage: history.anySourceReadable ? history.buckets : previousCache?.hourlyUsage ?? [],
-                deepseekBalanceHistory: previousCache?.deepseekBalanceHistory ?? []
+                deepseekBalanceHistory: previousCache?.deepseekBalanceHistory ?? [],
+                openAIQuotaHistory: previousCache?.openAIQuotaHistory ?? []
             )
         }
 
@@ -189,6 +190,11 @@ enum DataFetcher {
             to: previousCache?.deepseekBalanceHistory ?? []
         )
         let openAIQuota = await fetchedOpenAIQuotaTask.value
+        let openAIQuotaHistory = OpenAIQuotaHistory.appending(
+            remainingPercent: openAIQuota?.remainingPercent,
+            at: historyNow,
+            to: previousCache?.openAIQuotaHistory ?? []
+        )
         let history = await historyTask.value
 
         let minimaxCreditVal: Double?
@@ -210,7 +216,8 @@ enum DataFetcher {
             dailyUsage: usage,
             openAIQuota: openAIQuota ?? previousQuota,
             hourlyUsage: history.anySourceReadable ? history.buckets : previousCache?.hourlyUsage ?? [],
-            deepseekBalanceHistory: deepseekBalanceHistory
+            deepseekBalanceHistory: deepseekBalanceHistory,
+            openAIQuotaHistory: openAIQuotaHistory
         )
     }
 }

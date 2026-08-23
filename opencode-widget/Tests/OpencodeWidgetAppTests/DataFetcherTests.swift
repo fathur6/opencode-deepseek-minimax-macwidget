@@ -434,6 +434,59 @@ final class DataFetcherTests: XCTestCase {
         XCTAssertEqual(cache.deepseekBalanceHistory, snapshots)
     }
 
+    func testRefreshAllAppendsOpenAIQuotaSnapshotOnSuccess() async throws {
+        let authJSON = #"{"deepseek":{"key":"ds-test-key"},"minimax":{"key":"mm-test-key"}}"#
+        try authJSON.write(toFile: tempAuthPath, atomically: true, encoding: .utf8)
+        createDB()
+        let dsURL = "https://api.deepseek.com/user/balance"
+        MockURLProtocol.responses[dsURL] = (#"{"balance_infos":[{"total_balance":"42.00"}]}"#.data(using: .utf8), nil, 200)
+
+        let cache = await DataFetcher.refreshAll(
+            dbPath: tempDBPath,
+            authPath: tempAuthPath,
+            session: makeSession(),
+            cacheSuiteName: tempCachePath,
+            historyNow: Date(timeIntervalSince1970: 1_800_003_600),
+            openAIQuotaFetcher: { _, _, _ in OpenAIQuota(remainingPercent: 44) }
+        )
+
+        XCTAssertEqual(cache.openAIQuotaHistory.count, 1)
+        XCTAssertEqual(cache.openAIQuotaHistory.first?.remainingPercent, 44)
+    }
+
+    func testRefreshAllPreservesOpenAIQuotaHistoryWhenFetchFails() async throws {
+        try #"{"deepseek":{"key":"ds-test-key"},"minimax":{"key":"mm-test-key"}}"#.write(toFile: tempAuthPath, atomically: true, encoding: .utf8)
+        let snapshot = OpenAIQuotaSnapshot(hour: Date(timeIntervalSince1970: 1_800_000_000), remainingPercent: 40)
+        DataStore.save(cache: WidgetCache(openAIQuotaHistory: [snapshot]), suiteName: tempCachePath)
+
+        let cache = await DataFetcher.refreshAll(
+            dbPath: tempDBPath,
+            authPath: tempAuthPath,
+            session: makeSession(),
+            cacheSuiteName: tempCachePath,
+            historyNow: Date(timeIntervalSince1970: 1_800_003_600),
+            openAIQuotaFetcher: { _, _, _ in nil }
+        )
+
+        XCTAssertEqual(cache.openAIQuotaHistory, [snapshot])
+    }
+
+    func testRefreshAllPreservesOpenAIQuotaHistoryWhenAuthenticationIsMissing() async throws {
+        let snapshot = OpenAIQuotaSnapshot(hour: Date(timeIntervalSince1970: 1_800_000_000), remainingPercent: 40)
+        DataStore.save(cache: WidgetCache(openAIQuotaHistory: [snapshot]), suiteName: tempCachePath)
+
+        let cache = await DataFetcher.refreshAll(
+            dbPath: tempDBPath,
+            authPath: tempAuthPath,
+            session: makeSession(),
+            cacheSuiteName: tempCachePath,
+            historyNow: Date(timeIntervalSince1970: 1_800_003_600),
+            openAIQuotaFetcher: { _, _, _ in nil }
+        )
+
+        XCTAssertEqual(cache.openAIQuotaHistory, [snapshot])
+    }
+
     // MARK: - Helpers
 
     private func makeSession() -> URLSession {
