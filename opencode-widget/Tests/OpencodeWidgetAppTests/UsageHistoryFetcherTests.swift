@@ -83,7 +83,7 @@ final class UsageHistoryFetcherTests: XCTestCase {
         XCTAssertEqual(result.buckets.reduce(0) { $0 + $1.deepseekInputTokens }, 25)
     }
 
-    func testCodexPrefersLastUsageAndUsesPositivePerFileDeltas() throws {
+    func testCodexReadsOldFileWhenDatedSessionDirectoryOverlapsHistory() throws {
         let active = root.appendingPathComponent("sessions/2027/01/15")
         let archived = root.appendingPathComponent("archived_sessions")
         try FileManager.default.createDirectory(at: active, withIntermediateDirectories: true)
@@ -104,7 +104,7 @@ final class UsageHistoryFetcherTests: XCTestCase {
         let archivedFile = archived.appendingPathComponent("rollout-b.jsonl")
         try lines.joined(separator: "\n").write(to: activeFile, atomically: true, encoding: .utf8)
         try tokenLine(timestamp: t2, total: ["input_tokens": 7]).write(to: archivedFile, atomically: true, encoding: .utf8)
-        try FileManager.default.setAttributes([.modificationDate: now], ofItemAtPath: activeFile.path)
+        try FileManager.default.setAttributes([.modificationDate: now.addingTimeInterval(-721 * 3_600)], ofItemAtPath: activeFile.path)
         try FileManager.default.setAttributes([.modificationDate: now], ofItemAtPath: archivedFile.path)
 
         let result = UsageHistoryFetcher(

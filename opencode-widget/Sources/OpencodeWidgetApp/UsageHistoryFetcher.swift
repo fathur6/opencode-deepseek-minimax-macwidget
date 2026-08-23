@@ -185,11 +185,33 @@ struct UsageHistoryFetcher: Sendable {
                 guard fileURL.pathExtension == "jsonl", visited.insert(fileURL.standardizedFileURL.path).inserted else { continue }
                 let values = try? fileURL.resourceValues(forKeys: [.contentModificationDateKey, .isRegularFileKey])
                 guard values?.isRegularFile == true else { continue }
-                if let modified = values?.contentModificationDate, modified < cutoff { continue }
+                if let modified = values?.contentModificationDate,
+                   modified < cutoff,
+                   !codexSessionDirectoryOverlapsHistory(for: fileURL, under: canonicalRoot) {
+                    continue
+                }
                 events.append(contentsOf: readCodexFile(fileURL))
             }
         }
         return (events, readable)
+    }
+
+    private func codexSessionDirectoryOverlapsHistory(for fileURL: URL, under root: URL) -> Bool {
+        let rootComponents = root.pathComponents
+        let fileComponents = fileURL.standardizedFileURL.pathComponents
+        guard fileComponents.starts(with: rootComponents) else { return false }
+
+        let relativeComponents = Array(fileComponents.dropFirst(rootComponents.count))
+        guard relativeComponents.count >= 4,
+              let year = Int(relativeComponents[0]),
+              let month = Int(relativeComponents[1]),
+              let day = Int(relativeComponents[2]) else { return false }
+
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        guard let sessionDay = calendar.date(from: DateComponents(year: year, month: month, day: day)),
+              let nextSessionDay = calendar.date(byAdding: .day, value: 1, to: sessionDay) else { return false }
+        return sessionDay <= now && nextSessionDay > cutoff
     }
 
     private func readCodexFile(_ url: URL) -> [UsageTokenEvent] {
