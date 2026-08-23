@@ -146,8 +146,9 @@ final class UsageHistoryFetcherTests: XCTestCase {
             HourlyUsageBucket(hour: now, smoothedOpenAIInputTokens: 10, smoothedDeepseekInputTokens: 5),
             HourlyUsageBucket(hour: now.addingTimeInterval(3_600))
         ]
+        let xDomain = now...now.addingTimeInterval(167 * 3_600)
 
-        let projection = UsageHistoryChartProjection(buckets: buckets)
+        let projection = UsageHistoryChartProjection(buckets: buckets, xDomain: xDomain)
 
         XCTAssertEqual(projection.series.map(\.provider), [.openAI, .deepseek])
         XCTAssertEqual(projection.series.map(\.colorName), ["green", "blue"])
@@ -155,6 +156,7 @@ final class UsageHistoryFetcherTests: XCTestCase {
         XCTAssertEqual(projection.yDomain.lowerBound, 0)
         XCTAssertTrue(projection.yDomain.upperBound.isFinite)
         XCTAssertGreaterThan(projection.yDomain.upperBound, 0)
+        XCTAssertEqual(projection.xDomain, xDomain)
     }
 
     private func milliseconds(hoursAgo: Int) -> Int64 { Int64(now.addingTimeInterval(Double(-hoursAgo * 3_600)).timeIntervalSince1970 * 1_000) }

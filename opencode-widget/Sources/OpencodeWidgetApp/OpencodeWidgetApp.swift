@@ -12,6 +12,7 @@ class MenuBarState {
     var minimaxBalance: Double?
     var openAIQuota: OpenAIQuota?
     var hourlyUsage: [HourlyUsageBucket] = []
+    var deepseekBalanceHistory: [DeepSeekBalanceSnapshot] = []
     var lastUpdated: Date?
 }
 
@@ -102,6 +103,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         MenuBarState.shared.minimaxBalance = cache.minimax.balance
         MenuBarState.shared.openAIQuota = cache.openAIQuota
         MenuBarState.shared.hourlyUsage = cache.hourlyUsage
+        MenuBarState.shared.deepseekBalanceHistory = cache.deepseekBalanceHistory
         MenuBarState.shared.lastUpdated = cache.lastUpdated
     }
 }
@@ -124,6 +126,28 @@ struct MenuContent: View {
         guard let resetDate else { return nil }
         let hours = QuotaResetTimeline(resetDate: resetDate).elapsedHours(at: now)
         return String(format: "%.0fh of 168h", hours)
+    }
+
+    private var sortedHourlyUsage: [HourlyUsageBucket] {
+        menuState.hourlyUsage.sorted { $0.hour < $1.hour }
+    }
+
+    private var sortedDeepSeekHistory: [DeepSeekBalanceSnapshot] {
+        menuState.deepseekBalanceHistory.sorted { $0.hour < $1.hour }
+    }
+
+    private var chartDomain: ClosedRange<Date> {
+        let fallbackHour = Date(timeIntervalSince1970: floor((menuState.lastUpdated ?? Date()).timeIntervalSince1970 / 3_600) * 3_600)
+        let newestHour = max(sortedHourlyUsage.last?.hour ?? fallbackHour, sortedDeepSeekHistory.last?.hour ?? fallbackHour)
+        return ChartWindow.range(endingAt: newestHour, offsetHours: 0)
+    }
+
+    private var visibleHourlyUsage: [HourlyUsageBucket] {
+        sortedHourlyUsage.filter { chartDomain.contains($0.hour) }
+    }
+
+    private var visibleDeepSeekHistory: [DeepSeekBalanceSnapshot] {
+        sortedDeepSeekHistory.filter { chartDomain.contains($0.hour) }
     }
 
     var body: some View {
@@ -163,7 +187,11 @@ struct MenuContent: View {
             .padding(.horizontal, 12)
             .padding(.top, 8)
 
-            UsageHistoryChart(buckets: menuState.hourlyUsage)
+            UsageHistoryChart(buckets: visibleHourlyUsage, xDomain: chartDomain)
+                .padding(.horizontal, 12)
+                .padding(.top, 8)
+
+            DeepSeekRemainingChart(snapshots: visibleDeepSeekHistory, xDomain: chartDomain)
                 .padding(.horizontal, 12)
                 .padding(.top, 8)
 

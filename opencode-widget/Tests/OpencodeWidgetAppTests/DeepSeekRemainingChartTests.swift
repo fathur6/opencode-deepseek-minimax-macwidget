@@ -1,0 +1,39 @@
+import XCTest
+@testable import OpencodeWidgetApp
+@testable import OpencodeWidgetShared
+
+final class DeepSeekRemainingChartTests: XCTestCase {
+    func testChartWindowMovesOneDayButKeepsOneHundredSixtyEightHours() {
+        let newestHour = Date(timeIntervalSince1970: Double(719 * 3_600))
+        let range = ChartWindow.range(endingAt: newestHour, offsetHours: 24)
+
+        XCTAssertEqual(range.lowerBound, Date(timeIntervalSince1970: Double(528 * 3_600)))
+        XCTAssertEqual(range.upperBound, Date(timeIntervalSince1970: Double(695 * 3_600)))
+    }
+
+    func testProjectionClassifiesTopUpsAndConsumption() {
+        let start = Date(timeIntervalSince1970: 0)
+        let snapshots = [
+            DeepSeekBalanceSnapshot(hour: start, remainingRM: 45),
+            DeepSeekBalanceSnapshot(hour: start.addingTimeInterval(3_600), remainingRM: 40),
+            DeepSeekBalanceSnapshot(hour: start.addingTimeInterval(7_200), remainingRM: 70)
+        ]
+
+        let projection = DeepSeekRemainingChartProjection(
+            snapshots: snapshots,
+            xDomain: start...start.addingTimeInterval(167 * 3_600)
+        )
+
+        XCTAssertEqual(projection.consumption.map(\.amount), [5])
+        XCTAssertEqual(projection.topUps.map(\.amount), [30])
+        XCTAssertEqual(projection.topUps.first?.colorName, "green")
+        XCTAssertEqual(projection.consumption.first?.colorName, "gray")
+    }
+
+    func testProjectionRetainsTheProvidedDomainWhenHistoryIsEmpty() {
+        let start = Date(timeIntervalSince1970: 0)
+        let range = start...start.addingTimeInterval(167 * 3_600)
+
+        XCTAssertEqual(DeepSeekRemainingChartProjection(snapshots: [], xDomain: range).xDomain, range)
+    }
+}
