@@ -350,4 +350,39 @@ final class ModelsTests: XCTestCase {
         XCTAssertEqual(a, b)
         XCTAssertNotEqual(a, c)
     }
+
+    // MARK: - OpenAIQuotaSnapshot / OpenAIQuotaHistory
+
+    func testOpenAIQuotaHistoryStoresLastObservationForAnHour() {
+        let hour = Date(timeIntervalSince1970: 1_800_000_000)
+        let first = OpenAIQuotaHistory.appending(remainingPercent: 60, at: hour.addingTimeInterval(60), to: [])
+        let updated = OpenAIQuotaHistory.appending(remainingPercent: 55, at: hour.addingTimeInterval(3_500), to: first)
+        XCTAssertEqual(updated, [OpenAIQuotaSnapshot(hour: hour, remainingPercent: 55)])
+    }
+
+    func testOpenAIQuotaHistoryTrimsToThirtyDays() {
+        let start = Date(timeIntervalSince1970: 1_800_000_000)
+        let snapshots = (0...OpenAIQuotaHistory.maximumHours).reduce([OpenAIQuotaSnapshot]()) { result, index in
+            OpenAIQuotaHistory.appending(remainingPercent: Double(index % 100), at: start.addingTimeInterval(Double(index * 3_600)), to: result)
+        }
+        XCTAssertEqual(snapshots.count, OpenAIQuotaHistory.maximumHours)
+        XCTAssertEqual(snapshots.first?.hour, start.addingTimeInterval(3_600))
+    }
+
+    func testOpenAIQuotaHistoryRejectsInvalidValues() {
+        let hour = Date(timeIntervalSince1970: 1_800_000_000)
+        let existing = [OpenAIQuotaSnapshot(hour: hour, remainingPercent: 40)]
+        XCTAssertEqual(OpenAIQuotaHistory.appending(remainingPercent: nil, at: hour, to: existing), existing)
+        XCTAssertEqual(OpenAIQuotaHistory.appending(remainingPercent: 120, at: hour, to: existing), existing)
+        XCTAssertEqual(OpenAIQuotaHistory.appending(remainingPercent: .nan, at: hour, to: existing), existing)
+    }
+
+    func testWidgetCacheDecodesLegacyPayloadWithoutOpenAIQuotaHistory() throws {
+        let json = #"""
+        {"lastUpdated":0,"deepseek":{"currency":"USD"},"minimax":{"currency":"USD"},"dailyUsage":[]}
+        """#
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .secondsSince1970
+        XCTAssertEqual(try decoder.decode(WidgetCache.self, from: Data(json.utf8)).openAIQuotaHistory, [])
+    }
 }
