@@ -115,6 +115,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 @MainActor
 struct MenuContent: View {
     @State private var menuState = MenuBarState.shared
+    @State private var chartOffsetHours = 0
 
     static func quotaText(_ quota: OpenAIQuota?) -> String {
         guard let percent = quota?.remainingPercent else { return "Quota unavailable" }
@@ -132,29 +133,21 @@ struct MenuContent: View {
         return String(format: "%.0fh of 168h", hours)
     }
 
-    private var sortedHourlyUsage: [HourlyUsageBucket] {
-        menuState.hourlyUsage.sorted { $0.hour < $1.hour }
+    static func previousOffset(current: Int, historyCount: Int) -> Int {
+        min(current + ChartWindow.stepHours, ChartWindow.maximumOffset(for: historyCount))
     }
 
-    private var sortedDeepSeekHistory: [DeepSeekBalanceSnapshot] {
-        menuState.deepseekBalanceHistory.sorted { $0.hour < $1.hour }
-    }
-
-    private var chartDomain: ClosedRange<Date> {
-        let fallbackHour = Date(timeIntervalSince1970: floor((menuState.lastUpdated ?? Date()).timeIntervalSince1970 / 3_600) * 3_600)
-        let newestHour = max(sortedHourlyUsage.last?.hour ?? fallbackHour, sortedDeepSeekHistory.last?.hour ?? fallbackHour)
-        return ChartWindow.range(endingAt: newestHour, offsetHours: 0)
-    }
-
-    private var visibleHourlyUsage: [HourlyUsageBucket] {
-        sortedHourlyUsage.filter { chartDomain.contains($0.hour) }
-    }
-
-    private var visibleDeepSeekHistory: [DeepSeekBalanceSnapshot] {
-        sortedDeepSeekHistory.filter { chartDomain.contains($0.hour) }
+    static func nextOffset(current: Int) -> Int {
+        max(0, current - ChartWindow.stepHours)
     }
 
     var body: some View {
+        let historyCount = menuState.hourlyUsage.count
+        let newestHour = menuState.hourlyUsage.last?.hour ?? Date()
+        let chartRange = ChartWindow.range(endingAt: newestHour, offsetHours: chartOffsetHours)
+        let usageBuckets = menuState.hourlyUsage.filter { chartRange.contains($0.hour) }
+        let balanceSnapshots = menuState.deepseekBalanceHistory.filter { chartRange.contains($0.hour) }
+
         VStack(spacing: 0) {
             HStack(spacing: 8) {
                 balanceCard(title: "DeepSeek", balance: menuState.deepseekBalance) {
@@ -191,11 +184,33 @@ struct MenuContent: View {
             .padding(.horizontal, 12)
             .padding(.top, 8)
 
-            UsageHistoryChart(buckets: visibleHourlyUsage, xDomain: chartDomain)
-                .padding(.horizontal, 12)
-                .padding(.top, 8)
+            HStack {
+                Button {
+                    chartOffsetHours = Self.previousOffset(current: chartOffsetHours, historyCount: historyCount)
+                } label: {
+                    Image(systemName: "chevron.left")
+                }
+                .buttonStyle(.plain)
+                .disabled(chartOffsetHours == ChartWindow.maximumOffset(for: historyCount))
 
-            DeepSeekRemainingChart(snapshots: visibleDeepSeekHistory, xDomain: chartDomain)
+                Spacer()
+
+                Button {
+                    chartOffsetHours = Self.nextOffset(current: chartOffsetHours)
+                } label: {
+                    Image(systemName: "chevron.right")
+                }
+                .buttonStyle(.plain)
+                .disabled(chartOffsetHours == 0)
+            }
+            .padding(.horizontal, 12)
+            .padding(.top, 8)
+
+            UsageHistoryChart(buckets: usageBuckets, xDomain: chartRange)
+                .padding(.horizontal, 12)
+                .padding(.top, 4)
+
+            DeepSeekRemainingChart(snapshots: balanceSnapshots, xDomain: chartRange)
                 .padding(.horizontal, 12)
                 .padding(.top, 8)
 
@@ -211,6 +226,9 @@ struct MenuContent: View {
             .padding(.bottom, 6)
         }
         .frame(width: 220)
+        .onChange(of: menuState.hourlyUsage) { _, history in
+            chartOffsetHours = min(chartOffsetHours, ChartWindow.maximumOffset(for: history.count))
+        }
     }
 
     private static let usdToMYR: Double = 4.5

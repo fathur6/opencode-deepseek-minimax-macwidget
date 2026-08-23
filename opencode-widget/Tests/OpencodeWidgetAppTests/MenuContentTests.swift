@@ -29,4 +29,14 @@ final class MenuContentTests: XCTestCase {
 
         XCTAssertEqual(state.deepseekBalanceHistory, history)
     }
+
+    func testPreviousOffsetMovesBackOneDayWithoutExceedingHistory() {
+        XCTAssertEqual(MenuContent.previousOffset(current: 0, historyCount: 720), 24)
+        XCTAssertEqual(MenuContent.previousOffset(current: 552, historyCount: 720), 552)
+    }
+
+    func testNextOffsetMovesTowardLiveWindow() {
+        XCTAssertEqual(MenuContent.nextOffset(current: 24), 0)
+        XCTAssertEqual(MenuContent.nextOffset(current: 0), 0)
+    }
 }
