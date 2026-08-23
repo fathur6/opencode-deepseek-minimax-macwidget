@@ -15,6 +15,7 @@ macOS menu bar app that tracks DeepSeek and MiniMax API usage in real time. Show
 - 15-minute auto-refresh
 - B&W monochrome design
 - DeepSeek remaining RM history: a 168-hour view with up to 30 days of local hourly snapshots. Green bars are top-ups, gray bars are balance reductions, and left/right controls move both charts together by one day.
+- Remaining Quota: a scrollable 168-hour view with up to 30 days of local hourly snapshots. Blue is the DeepSeek balance in RM (left axis); green is the OpenAI remaining percent (right axis).
 
 ## Example
 
