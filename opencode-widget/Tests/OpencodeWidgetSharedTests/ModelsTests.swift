@@ -37,6 +37,34 @@ final class ModelsTests: XCTestCase {
         XCTAssertEqual(decoded.hourlyUsage, [])
     }
 
+    func testBalanceHistoryStoresLastObservationForAnHourAndConvertsToRM() {
+        let hour = Date(timeIntervalSince1970: 1_800_000_000)
+        let first = DeepSeekBalanceHistory.appending(balanceUSD: 10, at: hour.addingTimeInterval(60), to: [])
+        let updated = DeepSeekBalanceHistory.appending(balanceUSD: 9.5, at: hour.addingTimeInterval(3_500), to: first)
+
+        XCTAssertEqual(updated, [DeepSeekBalanceSnapshot(hour: hour, remainingRM: 42.75)])
+    }
+
+    func testBalanceHistoryTrimsToThirtyDays() {
+        let start = Date(timeIntervalSince1970: 1_800_000_000)
+        let snapshots = (0...DeepSeekBalanceHistory.maximumHours).reduce([DeepSeekBalanceSnapshot]()) { result, index in
+            DeepSeekBalanceHistory.appending(balanceUSD: Double(index), at: start.addingTimeInterval(Double(index * 3_600)), to: result)
+        }
+
+        XCTAssertEqual(snapshots.count, DeepSeekBalanceHistory.maximumHours)
+        XCTAssertEqual(snapshots.first?.hour, start.addingTimeInterval(3_600))
+    }
+
+    func testWidgetCacheDecodesLegacyPayloadWithoutBalanceHistory() throws {
+        let json = #"""
+        {"lastUpdated":0,"deepseek":{"currency":"USD"},"minimax":{"currency":"USD"},"dailyUsage":[]}
+        """#
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .secondsSince1970
+
+        XCTAssertEqual(try decoder.decode(WidgetCache.self, from: Data(json.utf8)).deepseekBalanceHistory, [])
+    }
+
     // MARK: - ProviderBalance encoding/decoding round-trip
 
     func testProviderBalanceEncodingDecodingRoundTrip() throws {
