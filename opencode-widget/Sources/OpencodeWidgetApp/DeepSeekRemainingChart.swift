@@ -12,30 +12,45 @@ struct DeepSeekBalanceDelta: Identifiable, Equatable {
     var id: String { "\(hour.timeIntervalSince1970)-\(colorName)" }
 }
 
-struct RemainingQuotaSeries: Equatable {
-    let colorName: String
+struct RemainingQuotaChartPoint: Identifiable, Equatable {
+    let series: String
+    let hour: Date
+    let y: Double
+
+    var id: String { "\(series)-\(hour.timeIntervalSince1970)" }
 }
 
 struct RemainingQuotaChartProjection: Equatable {
-    let deepseek: RemainingQuotaSeries
-    let openAI: RemainingQuotaSeries
-    let deepseekSnapshots: [DeepSeekBalanceSnapshot]
-    let openAISnapshots: [OpenAIQuotaSnapshot]
-    let balanceMarkers: [DeepSeekBalanceSnapshot]
-    let percentMarkers: [OpenAIQuotaSnapshot]
+    let deepseekSeriesColor: String
+    let openAISeriesColor: String
+    let deepseekPoints: [RemainingQuotaChartPoint]
+    let openAIPoints: [RemainingQuotaChartPoint]
     let topUps: [DeepSeekBalanceDelta]
     let consumption: [DeepSeekBalanceDelta]
     let xDomain: ClosedRange<Date>
-    let deepseekRMYDomain: ClosedRange<Double>
-    let openAIPercentYDomain: ClosedRange<Double>
+    let plotYDomain: ClosedRange<Double>
+    let rmAxisMax: Double
+    let percentAxisMax: Double
+
+    private static let deepseekSeriesKey = "DeepSeek"
+    private static let openAISeriesKey = "OpenAI"
 
     init(deepseekSnapshots: [DeepSeekBalanceSnapshot], openAISnapshots: [OpenAIQuotaSnapshot], xDomain: ClosedRange<Date>) {
-        self.deepseek = RemainingQuotaSeries(colorName: "blue")
-        self.openAI = RemainingQuotaSeries(colorName: "green")
-        self.deepseekSnapshots = deepseekSnapshots
-        self.openAISnapshots = openAISnapshots
-        balanceMarkers = deepseekSnapshots
-        percentMarkers = openAISnapshots
+        deepseekSeriesColor = "blue"
+        openAISeriesColor = "green"
+
+        let maxRM = max(1, deepseekSnapshots.map(\.remainingRM).max() ?? 0)
+        let maxPercent = max(1, openAISnapshots.map(\.remainingPercent).max() ?? 0)
+        let rmAxisMax = maxRM * 1.1
+        let percentAxisMax = 110.0
+
+        deepseekPoints = deepseekSnapshots.map {
+            RemainingQuotaChartPoint(series: Self.deepseekSeriesKey, hour: $0.hour, y: $0.remainingRM / rmAxisMax)
+        }
+        openAIPoints = openAISnapshots.map {
+            RemainingQuotaChartPoint(series: Self.openAISeriesKey, hour: $0.hour, y: $0.remainingPercent / percentAxisMax)
+        }
+
         var topUps: [DeepSeekBalanceDelta] = []
         var consumption: [DeepSeekBalanceDelta] = []
         for (previous, current) in zip(deepseekSnapshots, deepseekSnapshots.dropFirst()) {
@@ -43,12 +58,13 @@ struct RemainingQuotaChartProjection: Equatable {
             if delta > 0 { topUps.append(.init(hour: current.hour, amount: delta, colorName: "green")) }
             if delta < 0 { consumption.append(.init(hour: current.hour, amount: -delta, colorName: "gray")) }
         }
+
         self.topUps = topUps
         self.consumption = consumption
         self.xDomain = xDomain
-        let maxRM = max(1, deepseekSnapshots.map(\.remainingRM).max() ?? 0)
-        deepseekRMYDomain = 0...(maxRM * 1.1)
-        openAIPercentYDomain = 0...110
+        self.plotYDomain = 0...1
+        self.rmAxisMax = rmAxisMax
+        self.percentAxisMax = percentAxisMax
     }
 }
 
@@ -65,11 +81,24 @@ struct RemainingQuotaChart: View {
         )
     }
 
+    func rmLabel(_ plotY: Double, axisMax: Double) -> String {
+        (plotY * axisMax).formatted(.number.notation(.compactName).precision(.fractionLength(0)))
+    }
+
+    func percentLabel(_ plotY: Double, axisMax: Double) -> String {
+        (plotY * axisMax).formatted(.number.precision(.fractionLength(0)))
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("Remaining Quota")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            HStack {
+                Text("Remaining Quota")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Spacer(minLength: 4)
+                legend(name: "DeepSeek RM", color: .blue)
+                legend(name: "OpenAI %", color: .green)
+            }
 
             if deepseekSnapshots.isEmpty && openAISnapshots.isEmpty {
                 Text("Unavailable")
@@ -78,29 +107,51 @@ struct RemainingQuotaChart: View {
                     .frame(height: 92, alignment: .leading)
             } else {
                 Chart {
-                    ForEach(projection.deepseekSnapshots) { snapshot in
+                    ForEach(projection.deepseekPoints) { point in
                         LineMark(
-                            x: .value("Hour", snapshot.hour),
-                            y: .value("Remaining RM", snapshot.remainingRM)
+                            x: .value("Hour", point.hour),
+                            y: .value("Remaining", point.y),
+                            series: .value("Series", point.series)
                         )
-                        .foregroundStyle(.blue)
+                        .foregroundStyle(by: .value("Series", point.series))
                         .interpolationMethod(.catmullRom)
                         .lineStyle(StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
                     }
 
-                    ForEach(projection.balanceMarkers) { snapshot in
-                        PointMark(
-                            x: .value("Hour", snapshot.hour),
-                            y: .value("Remaining RM", snapshot.remainingRM)
+                    ForEach(projection.openAIPoints) { point in
+                        LineMark(
+                            x: .value("Hour", point.hour),
+                            y: .value("Remaining", point.y),
+                            series: .value("Series", point.series)
                         )
-                        .foregroundStyle(.blue)
+                        .foregroundStyle(by: .value("Series", point.series))
+                        .interpolationMethod(.catmullRom)
+                        .lineStyle(StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
+                    }
+
+                    ForEach(projection.deepseekPoints) { point in
+                        PointMark(
+                            x: .value("Hour", point.hour),
+                            y: .value("Remaining", point.y)
+                        )
+                        .foregroundStyle(by: .value("Series", point.series))
+                        .symbolSize(20)
+                    }
+
+                    ForEach(projection.openAIPoints) { point in
+                        PointMark(
+                            x: .value("Hour", point.hour),
+                            y: .value("Remaining", point.y)
+                        )
+                        .foregroundStyle(by: .value("Series", point.series))
                         .symbolSize(20)
                     }
 
                     ForEach(projection.topUps) { topUp in
                         BarMark(
                             x: .value("Hour", topUp.hour),
-                            y: .value("Top up", topUp.amount)
+                            yStart: .value("Zero", 0),
+                            yEnd: .value("Top up", topUp.amount / projection.rmAxisMax)
                         )
                         .foregroundStyle(.green)
                     }
@@ -108,32 +159,19 @@ struct RemainingQuotaChart: View {
                     ForEach(projection.consumption) { event in
                         BarMark(
                             x: .value("Hour", event.hour),
-                            y: .value("Consumption", event.amount)
+                            yStart: .value("Zero", 0),
+                            yEnd: .value("Consumption", event.amount / projection.rmAxisMax)
                         )
                         .foregroundStyle(.gray)
                     }
-
-                    ForEach(projection.openAISnapshots) { snapshot in
-                        LineMark(
-                            x: .value("Hour", snapshot.hour),
-                            y: .value("Remaining Percent", snapshot.remainingPercent)
-                        )
-                        .foregroundStyle(.green)
-                        .interpolationMethod(.catmullRom)
-                        .lineStyle(StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
-                    }
-
-                    ForEach(projection.percentMarkers) { snapshot in
-                        PointMark(
-                            x: .value("Hour", snapshot.hour),
-                            y: .value("Remaining Percent", snapshot.remainingPercent)
-                        )
-                        .foregroundStyle(.green)
-                        .symbolSize(20)
-                    }
                 }
+                .chartForegroundStyleScale([
+                    "DeepSeek": Color.blue,
+                    "OpenAI": Color.green
+                ])
+                .chartLegend(.hidden)
                 .chartXScale(domain: projection.xDomain)
-                .chartYScale(domain: projection.deepseekRMYDomain)
+                .chartYScale(domain: projection.plotYDomain)
                 .chartXAxis {
                     AxisMarks(values: .stride(by: .day)) { value in
                         AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
@@ -155,16 +193,16 @@ struct RemainingQuotaChart: View {
                         AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
                             .foregroundStyle(.secondary.opacity(0.15))
                         AxisValueLabel {
-                            if let remainingRM = value.as(Double.self) {
-                                Text(remainingRM.formatted(.number.notation(.compactName).precision(.fractionLength(0))))
+                            if let plotY = value.as(Double.self) {
+                                Text(rmLabel(plotY, axisMax: projection.rmAxisMax))
                                     .font(.system(size: 8, design: .monospaced))
                             }
                         }
                     }
                     AxisMarks(position: .trailing, values: .automatic(desiredCount: 3)) { value in
                         AxisValueLabel {
-                            if let percent = value.as(Double.self) {
-                                Text(percent.formatted(.number.precision(.fractionLength(0))))
+                            if let plotY = value.as(Double.self) {
+                                Text(percentLabel(plotY, axisMax: projection.percentAxisMax))
                                     .font(.system(size: 8, design: .monospaced))
                             }
                         }
@@ -177,6 +215,13 @@ struct RemainingQuotaChart: View {
         .padding(8)
         .background(Color.primary.opacity(0.06))
         .cornerRadius(6)
+    }
+
+    private func legend(name: String, color: Color) -> some View {
+        HStack(spacing: 3) {
+            Circle().fill(color).frame(width: 5, height: 5)
+            Text(name).font(.system(size: 8, design: .monospaced)).foregroundStyle(.secondary)
+        }
     }
 
     private func showsMonth(for date: Date) -> Bool {

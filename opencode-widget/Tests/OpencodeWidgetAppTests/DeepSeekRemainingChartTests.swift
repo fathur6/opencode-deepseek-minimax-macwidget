@@ -52,6 +52,7 @@ final class DeepSeekRemainingChartTests: XCTestCase {
             xDomain: Date(timeIntervalSince1970: 0)...Date(timeIntervalSince1970: 167 * 3_600)
         )
 
-        XCTAssertEqual(projection.balanceMarkers, [snapshot])
+        XCTAssertEqual(projection.deepseekPoints.first?.hour, snapshot.hour)
+        XCTAssertEqual(projection.deepseekPoints.first?.series, "DeepSeek")
     }
 }

@@ -3,7 +3,7 @@ import XCTest
 @testable import OpencodeWidgetShared
 
 final class RemainingQuotaChartTests: XCTestCase {
-    func testProjectionAssignsColorsAndAxes() {
+    func testProjectionAssignsColorsAndPlotDomain() {
         let start = Date(timeIntervalSince1970: 0)
         let deepseek = [DeepSeekBalanceSnapshot(hour: start, remainingRM: 30)]
         let openAI = [OpenAIQuotaSnapshot(hour: start, remainingPercent: 44)]
@@ -15,10 +15,47 @@ final class RemainingQuotaChartTests: XCTestCase {
             xDomain: xDomain
         )
 
-        XCTAssertEqual(projection.deepseek.colorName, "blue")
-        XCTAssertEqual(projection.openAI.colorName, "green")
+        XCTAssertEqual(projection.deepseekSeriesColor, "blue")
+        XCTAssertEqual(projection.openAISeriesColor, "green")
         XCTAssertEqual(projection.xDomain, xDomain)
-        XCTAssertTrue(projection.deepseekRMYDomain.upperBound > 0)
-        XCTAssertEqual(projection.openAIPercentYDomain.upperBound, 110)
+        XCTAssertEqual(projection.plotYDomain, 0...1)
+        XCTAssertTrue(projection.rmAxisMax > 0)
+        XCTAssertEqual(projection.percentAxisMax, 110)
+    }
+
+    func testProjectionNormalizesBothSeriesOntoOnePlotDomain() {
+        let start = Date(timeIntervalSince1970: 0)
+        let deepseek = [DeepSeekBalanceSnapshot(hour: start, remainingRM: 20)]
+        let openAI = [OpenAIQuotaSnapshot(hour: start, remainingPercent: 100)]
+        let xDomain = start...start.addingTimeInterval(167 * 3_600)
+
+        let projection = RemainingQuotaChartProjection(
+            deepseekSnapshots: deepseek,
+            openAISnapshots: openAI,
+            xDomain: xDomain
+        )
+
+        let allY = projection.deepseekPoints.map(\.y) + projection.openAIPoints.map(\.y)
+        XCTAssertFalse(allY.isEmpty)
+        XCTAssertTrue(allY.allSatisfy { (0...1).contains($0) })
+        XCTAssertLessThanOrEqual(projection.deepseekPoints.first?.y ?? 2, 1)
+        XCTAssertLessThanOrEqual(projection.openAIPoints.first?.y ?? 2, 1)
+    }
+
+    func testProjectionKeepsEachSeriesDistinct() {
+        let start = Date(timeIntervalSince1970: 0)
+        let deepseek = [DeepSeekBalanceSnapshot(hour: start, remainingRM: 20)]
+        let openAI = [OpenAIQuotaSnapshot(hour: start, remainingPercent: 100)]
+        let xDomain = start...start.addingTimeInterval(167 * 3_600)
+
+        let projection = RemainingQuotaChartProjection(
+            deepseekSnapshots: deepseek,
+            openAISnapshots: openAI,
+            xDomain: xDomain
+        )
+
+        XCTAssertFalse(projection.deepseekPoints.isEmpty)
+        XCTAssertFalse(projection.openAIPoints.isEmpty)
+        XCTAssertNotEqual(projection.deepseekSeriesColor, projection.openAISeriesColor)
     }
 }
