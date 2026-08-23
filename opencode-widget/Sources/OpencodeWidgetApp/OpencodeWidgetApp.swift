@@ -13,6 +13,7 @@ class MenuBarState {
     var openAIQuota: OpenAIQuota?
     var hourlyUsage: [HourlyUsageBucket] = []
     var deepseekBalanceHistory: [DeepSeekBalanceSnapshot] = []
+    var openAIQuotaHistory: [OpenAIQuotaSnapshot] = []
     var lastUpdated: Date?
 
     func update(with cache: WidgetCache) {
@@ -21,6 +22,7 @@ class MenuBarState {
         openAIQuota = cache.openAIQuota
         hourlyUsage = cache.hourlyUsage
         deepseekBalanceHistory = cache.deepseekBalanceHistory
+        openAIQuotaHistory = cache.openAIQuotaHistory
         lastUpdated = cache.lastUpdated
     }
 }
@@ -147,6 +149,7 @@ struct MenuContent: View {
         let chartRange = ChartWindow.range(endingAt: newestHour, offsetHours: chartOffsetHours)
         let usageBuckets = menuState.hourlyUsage.filter { chartRange.contains($0.hour) }
         let balanceSnapshots = menuState.deepseekBalanceHistory.filter { chartRange.contains($0.hour) }
+        let openAISnapshots = menuState.openAIQuotaHistory.filter { chartRange.contains($0.hour) }
 
         VStack(spacing: 0) {
             HStack(spacing: 8) {
@@ -210,7 +213,7 @@ struct MenuContent: View {
                 .padding(.horizontal, 12)
                 .padding(.top, 4)
 
-            DeepSeekRemainingChart(snapshots: balanceSnapshots, xDomain: chartRange)
+            RemainingQuotaChart(deepseekSnapshots: balanceSnapshots, openAISnapshots: openAISnapshots, xDomain: chartRange)
                 .padding(.horizontal, 12)
                 .padding(.top, 8)
 

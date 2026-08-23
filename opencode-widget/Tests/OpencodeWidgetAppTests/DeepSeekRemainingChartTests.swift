@@ -19,8 +19,9 @@ final class DeepSeekRemainingChartTests: XCTestCase {
             DeepSeekBalanceSnapshot(hour: start.addingTimeInterval(7_200), remainingRM: 70)
         ]
 
-        let projection = DeepSeekRemainingChartProjection(
-            snapshots: snapshots,
+        let projection = RemainingQuotaChartProjection(
+            deepseekSnapshots: snapshots,
+            openAISnapshots: [],
             xDomain: start...start.addingTimeInterval(167 * 3_600)
         )
 
@@ -34,7 +35,10 @@ final class DeepSeekRemainingChartTests: XCTestCase {
         let start = Date(timeIntervalSince1970: 0)
         let range = start...start.addingTimeInterval(167 * 3_600)
 
-        XCTAssertEqual(DeepSeekRemainingChartProjection(snapshots: [], xDomain: range).xDomain, range)
+        XCTAssertEqual(
+            RemainingQuotaChartProjection(deepseekSnapshots: [], openAISnapshots: [], xDomain: range).xDomain,
+            range
+        )
     }
 
     func testProjectionExposesInitialSnapshotAsBalanceMarker() {
@@ -42,8 +46,9 @@ final class DeepSeekRemainingChartTests: XCTestCase {
             hour: Date(timeIntervalSince1970: 3_600),
             remainingRM: 32.355
         )
-        let projection = DeepSeekRemainingChartProjection(
-            snapshots: [snapshot],
+        let projection = RemainingQuotaChartProjection(
+            deepseekSnapshots: [snapshot],
+            openAISnapshots: [],
             xDomain: Date(timeIntervalSince1970: 0)...Date(timeIntervalSince1970: 167 * 3_600)
         )
 

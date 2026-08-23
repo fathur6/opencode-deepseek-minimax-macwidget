@@ -12,65 +12,78 @@ struct DeepSeekBalanceDelta: Identifiable, Equatable {
     var id: String { "\(hour.timeIntervalSince1970)-\(colorName)" }
 }
 
-struct DeepSeekRemainingChartProjection: Equatable {
-    let snapshots: [DeepSeekBalanceSnapshot]
+struct RemainingQuotaSeries: Equatable {
+    let colorName: String
+}
+
+struct RemainingQuotaChartProjection: Equatable {
+    let deepseek: RemainingQuotaSeries
+    let openAI: RemainingQuotaSeries
+    let deepseekSnapshots: [DeepSeekBalanceSnapshot]
+    let openAISnapshots: [OpenAIQuotaSnapshot]
     let balanceMarkers: [DeepSeekBalanceSnapshot]
+    let percentMarkers: [OpenAIQuotaSnapshot]
     let topUps: [DeepSeekBalanceDelta]
     let consumption: [DeepSeekBalanceDelta]
     let xDomain: ClosedRange<Date>
-    let remainingDomain: ClosedRange<Double>
+    let deepseekRMYDomain: ClosedRange<Double>
+    let openAIPercentYDomain: ClosedRange<Double>
 
-    init(snapshots: [DeepSeekBalanceSnapshot], xDomain: ClosedRange<Date>) {
-        self.snapshots = snapshots
-        balanceMarkers = snapshots
+    init(deepseekSnapshots: [DeepSeekBalanceSnapshot], openAISnapshots: [OpenAIQuotaSnapshot], xDomain: ClosedRange<Date>) {
+        self.deepseek = RemainingQuotaSeries(colorName: "blue")
+        self.openAI = RemainingQuotaSeries(colorName: "green")
+        self.deepseekSnapshots = deepseekSnapshots
+        self.openAISnapshots = openAISnapshots
+        balanceMarkers = deepseekSnapshots
+        percentMarkers = openAISnapshots
         var topUps: [DeepSeekBalanceDelta] = []
         var consumption: [DeepSeekBalanceDelta] = []
-
-        for (previous, current) in zip(snapshots, snapshots.dropFirst()) {
+        for (previous, current) in zip(deepseekSnapshots, deepseekSnapshots.dropFirst()) {
             let delta = current.remainingRM - previous.remainingRM
-            if delta > 0 {
-                topUps.append(.init(hour: current.hour, amount: delta, colorName: "green"))
-            }
-            if delta < 0 {
-                consumption.append(.init(hour: current.hour, amount: -delta, colorName: "gray"))
-            }
+            if delta > 0 { topUps.append(.init(hour: current.hour, amount: delta, colorName: "green")) }
+            if delta < 0 { consumption.append(.init(hour: current.hour, amount: -delta, colorName: "gray")) }
         }
-
         self.topUps = topUps
         self.consumption = consumption
         self.xDomain = xDomain
-        let maximum = max(1, snapshots.map(\.remainingRM).max() ?? 0)
-        remainingDomain = 0...(maximum * 1.1)
+        let maxRM = max(1, deepseekSnapshots.map(\.remainingRM).max() ?? 0)
+        deepseekRMYDomain = 0...(maxRM * 1.1)
+        openAIPercentYDomain = 0...110
     }
 }
 
-struct DeepSeekRemainingChart: View {
-    let snapshots: [DeepSeekBalanceSnapshot]
+struct RemainingQuotaChart: View {
+    let deepseekSnapshots: [DeepSeekBalanceSnapshot]
+    let openAISnapshots: [OpenAIQuotaSnapshot]
     let xDomain: ClosedRange<Date>
 
-    private var projection: DeepSeekRemainingChartProjection {
-        DeepSeekRemainingChartProjection(snapshots: snapshots, xDomain: xDomain)
+    private var projection: RemainingQuotaChartProjection {
+        RemainingQuotaChartProjection(
+            deepseekSnapshots: deepseekSnapshots,
+            openAISnapshots: openAISnapshots,
+            xDomain: xDomain
+        )
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("DeepSeek remaining (RM)")
+            Text("Remaining Quota")
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
-            if snapshots.isEmpty {
+            if deepseekSnapshots.isEmpty && openAISnapshots.isEmpty {
                 Text("Unavailable")
                     .font(.system(size: 8, design: .monospaced))
                     .foregroundStyle(.secondary)
                     .frame(height: 92, alignment: .leading)
             } else {
                 Chart {
-                    ForEach(projection.snapshots) { snapshot in
+                    ForEach(projection.deepseekSnapshots) { snapshot in
                         LineMark(
                             x: .value("Hour", snapshot.hour),
                             y: .value("Remaining RM", snapshot.remainingRM)
                         )
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.blue)
                         .interpolationMethod(.catmullRom)
                         .lineStyle(StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
                     }
@@ -80,7 +93,7 @@ struct DeepSeekRemainingChart: View {
                             x: .value("Hour", snapshot.hour),
                             y: .value("Remaining RM", snapshot.remainingRM)
                         )
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.blue)
                         .symbolSize(20)
                     }
 
@@ -99,9 +112,28 @@ struct DeepSeekRemainingChart: View {
                         )
                         .foregroundStyle(.gray)
                     }
+
+                    ForEach(projection.openAISnapshots) { snapshot in
+                        LineMark(
+                            x: .value("Hour", snapshot.hour),
+                            y: .value("Remaining Percent", snapshot.remainingPercent)
+                        )
+                        .foregroundStyle(.green)
+                        .interpolationMethod(.catmullRom)
+                        .lineStyle(StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
+                    }
+
+                    ForEach(projection.percentMarkers) { snapshot in
+                        PointMark(
+                            x: .value("Hour", snapshot.hour),
+                            y: .value("Remaining Percent", snapshot.remainingPercent)
+                        )
+                        .foregroundStyle(.green)
+                        .symbolSize(20)
+                    }
                 }
                 .chartXScale(domain: projection.xDomain)
-                .chartYScale(domain: projection.remainingDomain)
+                .chartYScale(domain: projection.deepseekRMYDomain)
                 .chartXAxis {
                     AxisMarks(values: .stride(by: .day)) { value in
                         AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
@@ -125,6 +157,14 @@ struct DeepSeekRemainingChart: View {
                         AxisValueLabel {
                             if let remainingRM = value.as(Double.self) {
                                 Text(remainingRM.formatted(.number.notation(.compactName).precision(.fractionLength(0))))
+                                    .font(.system(size: 8, design: .monospaced))
+                            }
+                        }
+                    }
+                    AxisMarks(position: .trailing, values: .automatic(desiredCount: 3)) { value in
+                        AxisValueLabel {
+                            if let percent = value.as(Double.self) {
+                                Text(percent.formatted(.number.precision(.fractionLength(0))))
                                     .font(.system(size: 8, design: .monospaced))
                             }
                         }
