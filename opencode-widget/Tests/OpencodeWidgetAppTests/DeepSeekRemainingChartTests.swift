@@ -36,4 +36,17 @@ final class DeepSeekRemainingChartTests: XCTestCase {
 
         XCTAssertEqual(DeepSeekRemainingChartProjection(snapshots: [], xDomain: range).xDomain, range)
     }
+
+    func testProjectionExposesInitialSnapshotAsBalanceMarker() {
+        let snapshot = DeepSeekBalanceSnapshot(
+            hour: Date(timeIntervalSince1970: 3_600),
+            remainingRM: 32.355
+        )
+        let projection = DeepSeekRemainingChartProjection(
+            snapshots: [snapshot],
+            xDomain: Date(timeIntervalSince1970: 0)...Date(timeIntervalSince1970: 167 * 3_600)
+        )
+
+        XCTAssertEqual(projection.balanceMarkers, [snapshot])
+    }
 }

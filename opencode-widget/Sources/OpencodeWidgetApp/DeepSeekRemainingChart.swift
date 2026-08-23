@@ -14,6 +14,7 @@ struct DeepSeekBalanceDelta: Identifiable, Equatable {
 
 struct DeepSeekRemainingChartProjection: Equatable {
     let snapshots: [DeepSeekBalanceSnapshot]
+    let balanceMarkers: [DeepSeekBalanceSnapshot]
     let topUps: [DeepSeekBalanceDelta]
     let consumption: [DeepSeekBalanceDelta]
     let xDomain: ClosedRange<Date>
@@ -21,6 +22,7 @@ struct DeepSeekRemainingChartProjection: Equatable {
 
     init(snapshots: [DeepSeekBalanceSnapshot], xDomain: ClosedRange<Date>) {
         self.snapshots = snapshots
+        balanceMarkers = snapshots
         var topUps: [DeepSeekBalanceDelta] = []
         var consumption: [DeepSeekBalanceDelta] = []
 
@@ -68,9 +70,18 @@ struct DeepSeekRemainingChart: View {
                             x: .value("Hour", snapshot.hour),
                             y: .value("Remaining RM", snapshot.remainingRM)
                         )
-                        .foregroundStyle(.green)
+                        .foregroundStyle(.secondary)
                         .interpolationMethod(.catmullRom)
                         .lineStyle(StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
+                    }
+
+                    ForEach(projection.balanceMarkers) { snapshot in
+                        PointMark(
+                            x: .value("Hour", snapshot.hour),
+                            y: .value("Remaining RM", snapshot.remainingRM)
+                        )
+                        .foregroundStyle(.secondary)
+                        .symbolSize(20)
                     }
 
                     ForEach(projection.topUps) { topUp in
