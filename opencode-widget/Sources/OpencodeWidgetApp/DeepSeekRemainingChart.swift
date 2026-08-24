@@ -129,24 +129,6 @@ struct RemainingQuotaChart: View {
                         .lineStyle(StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
                     }
 
-                    ForEach(projection.deepseekPoints) { point in
-                        PointMark(
-                            x: .value("Hour", point.hour),
-                            y: .value("Remaining", point.y)
-                        )
-                        .foregroundStyle(by: .value("Series", point.series))
-                        .symbolSize(20)
-                    }
-
-                    ForEach(projection.openAIPoints) { point in
-                        PointMark(
-                            x: .value("Hour", point.hour),
-                            y: .value("Remaining", point.y)
-                        )
-                        .foregroundStyle(by: .value("Series", point.series))
-                        .symbolSize(20)
-                    }
-
                     ForEach(projection.topUps) { topUp in
                         BarMark(
                             x: .value("Hour", topUp.hour),
