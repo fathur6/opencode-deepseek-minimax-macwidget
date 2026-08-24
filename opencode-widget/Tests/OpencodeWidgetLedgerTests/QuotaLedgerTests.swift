@@ -74,4 +74,17 @@ final class QuotaLedgerTests: XCTestCase {
         XCTAssertEqual(rows[0].deepseekUSD ?? 0, 45 / 4.5, accuracy: 0.0001)
         XCTAssertEqual(rows[0].openaiPercent ?? 0, 60)
     }
+
+    func testRecentSnapshotsReturnsLimitMostRecentAscending() {
+        let base = Date(timeIntervalSince1970: 1_800_000_000)
+        for i in 0..<5 {
+            ledger.record(hour: base.addingTimeInterval(Double(i) * 3_600), deepseekUSD: 10, openaiPercent: 50, source: "both")
+        }
+        let recent = ledger.recentSnapshots(limit: 3)
+        XCTAssertEqual(recent.count, 3)
+        // most recent (descending query) must be sorted ascending by hour
+        XCTAssertLessThan(recent[0].hour, recent[1].hour)
+        XCTAssertLessThan(recent[1].hour, recent[2].hour)
+        XCTAssertEqual(recent.last?.hour, base.addingTimeInterval(4 * 3_600))
+    }
 }

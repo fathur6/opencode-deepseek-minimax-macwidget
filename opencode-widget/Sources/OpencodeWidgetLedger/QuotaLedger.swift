@@ -142,6 +142,25 @@ public final class QuotaLedger {
         return rows(from: interval.start, to: interval.end)
     }
 
+    public func recentSnapshots(limit: Int) -> [QuotaSnapshotRow] {
+        guard let db else { return [] }
+        let sql = "SELECT hour, deepseek_usd, openai_percent, source FROM quota_snapshots ORDER BY hour DESC LIMIT ?"
+        var stmt: OpaquePointer?
+        guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return [] }
+        sqlite3_bind_int(stmt, 1, Int32(max(0, limit)))
+        var result: [QuotaSnapshotRow] = []
+        while sqlite3_step(stmt) == SQLITE_ROW {
+            guard let hstr = sqliteText(stmt, index: 0),
+                  let h = isoFromString(hstr) else { continue }
+            let d: Double? = sqlite3_column_type(stmt, 1) == SQLITE_NULL ? nil : sqlite3_column_double(stmt, 1)
+            let p: Double? = sqlite3_column_type(stmt, 2) == SQLITE_NULL ? nil : sqlite3_column_double(stmt, 2)
+            let src = sqliteText(stmt, index: 3) ?? ""
+            result.append(QuotaSnapshotRow(hour: h, deepseekUSD: d, openaiPercent: p, source: src))
+        }
+        sqlite3_finalize(stmt)
+        return result.reversed()
+    }
+
     public func count() -> Int {
         guard let db else { return 0 }
         var stmt: OpaquePointer?

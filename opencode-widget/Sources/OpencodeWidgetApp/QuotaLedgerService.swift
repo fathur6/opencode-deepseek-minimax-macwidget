@@ -53,6 +53,34 @@ final class QuotaLedgerService {
         ledger.prune(retentionMonths: 12)
     }
 
+    /// Merge the durable ledger's recent snapshots into the cache's in-memory
+    /// history so the visible Quota chart reflects persisted data across rebuilds.
+    func seededCache(from cache: WidgetCache, limit: Int = 720) -> WidgetCache {
+        let rows = ledger.recentSnapshots(limit: limit)
+        guard !rows.isEmpty else { return cache }
+        let deepseekHistory = rows.compactMap { row -> DeepSeekBalanceSnapshot? in
+            guard let usd = row.deepseekUSD else { return nil }
+            return DeepSeekBalanceSnapshot(hour: row.hour, remainingRM: usd * DeepSeekBalanceHistory.usdToMYR)
+        }
+        let openAIHistory = rows.compactMap { row -> OpenAIQuotaSnapshot? in
+            guard let percent = row.openaiPercent else { return nil }
+            return OpenAIQuotaSnapshot(hour: row.hour, remainingPercent: percent)
+        }
+        return WidgetCache(
+            lastUpdated: cache.lastUpdated,
+            deepseek: cache.deepseek,
+            minimax: cache.minimax,
+            minimaxUsage: cache.minimaxUsage,
+            minimaxCredit: cache.minimaxCredit,
+            minimaxCreditFetched: cache.minimaxCreditFetched,
+            dailyUsage: cache.dailyUsage,
+            openAIQuota: cache.openAIQuota,
+            hourlyUsage: cache.hourlyUsage,
+            deepseekBalanceHistory: deepseekHistory,
+            openAIQuotaHistory: openAIHistory
+        )
+    }
+
     func recordRefresh(cache: WidgetCache) {
         if ledger.count() == 0 { begin(of: cache) }
         let now = Date()

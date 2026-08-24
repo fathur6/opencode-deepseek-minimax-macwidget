@@ -104,9 +104,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             let cache = await DataFetcher.refreshAll()
             QuotaLedgerService.shared.recordRefresh(cache: cache)
             await QuotaLedgerService.shared.runMonthlyReportIfDue()
-            DataStore.save(cache: cache)
+            let seeded = QuotaLedgerService.shared.seededCache(from: cache)
+            DataStore.save(cache: seeded)
             guard let self else { return }
-            updateMenuState(with: cache)
+            updateMenuState(with: seeded)
             updateStatusIcon()
         }
     }
@@ -265,8 +266,9 @@ struct MenuContent: View {
             let cache = await DataFetcher.refreshAll()
             QuotaLedgerService.shared.recordRefresh(cache: cache)
             await QuotaLedgerService.shared.runMonthlyReportIfDue()
-            DataStore.save(cache: cache)
-            MenuBarState.shared.update(with: cache)
+            let seeded = QuotaLedgerService.shared.seededCache(from: cache)
+            DataStore.save(cache: seeded)
+            MenuBarState.shared.update(with: seeded)
         }
     }
 }
