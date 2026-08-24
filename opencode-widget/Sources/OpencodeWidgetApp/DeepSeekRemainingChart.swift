@@ -40,9 +40,8 @@ struct RemainingQuotaChartProjection: Equatable {
         openAISeriesColor = "green"
 
         let maxRM = max(1, deepseekSnapshots.map(\.remainingRM).max() ?? 0)
-        let maxPercent = max(1, openAISnapshots.map(\.remainingPercent).max() ?? 0)
         let rmAxisMax = maxRM * 1.1
-        let percentAxisMax = 110.0
+        let percentAxisMax = 100.0
 
         deepseekPoints = deepseekSnapshots.map {
             RemainingQuotaChartPoint(series: Self.deepseekSeriesKey, hour: $0.hour, y: $0.remainingRM / rmAxisMax)
@@ -82,22 +81,22 @@ struct RemainingQuotaChart: View {
     }
 
     func rmLabel(_ plotY: Double, axisMax: Double) -> String {
-        (plotY * axisMax).formatted(.number.notation(.compactName).precision(.fractionLength(0)))
+        "RM" + (plotY * axisMax).formatted(.number.notation(.compactName).precision(.fractionLength(0)))
     }
 
     func percentLabel(_ plotY: Double, axisMax: Double) -> String {
-        (plotY * axisMax).formatted(.number.precision(.fractionLength(0)))
+        (plotY * axisMax).formatted(.number.precision(.fractionLength(0))) + "%"
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
-                Text("Remaining Quota")
+                Text("Quota")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Spacer(minLength: 4)
-                legend(name: "DeepSeek RM", color: .blue)
-                legend(name: "OpenAI %", color: .green)
+                legend(name: "DeepSeek", color: .blue)
+                legend(name: "OpenAI", color: .green)
             }
 
             if deepseekSnapshots.isEmpty && openAISnapshots.isEmpty {
@@ -199,7 +198,7 @@ struct RemainingQuotaChart: View {
                             }
                         }
                     }
-                    AxisMarks(position: .trailing, values: .automatic(desiredCount: 3)) { value in
+                    AxisMarks(position: .trailing, values: [1]) { value in
                         AxisValueLabel {
                             if let plotY = value.as(Double.self) {
                                 Text(percentLabel(plotY, axisMax: projection.percentAxisMax))

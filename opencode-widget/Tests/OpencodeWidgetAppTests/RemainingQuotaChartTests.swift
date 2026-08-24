@@ -20,7 +20,7 @@ final class RemainingQuotaChartTests: XCTestCase {
         XCTAssertEqual(projection.xDomain, xDomain)
         XCTAssertEqual(projection.plotYDomain, 0...1)
         XCTAssertTrue(projection.rmAxisMax > 0)
-        XCTAssertEqual(projection.percentAxisMax, 110)
+        XCTAssertEqual(projection.percentAxisMax, 100)
     }
 
     func testProjectionNormalizesBothSeriesOntoOnePlotDomain() {
