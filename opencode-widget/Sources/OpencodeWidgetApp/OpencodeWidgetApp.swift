@@ -102,6 +102,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private func refreshData() {
         Task { [weak self] in
             let cache = await DataFetcher.refreshAll()
+            QuotaLedgerService.shared.recordRefresh(cache: cache)
+            await QuotaLedgerService.shared.runMonthlyReportIfDue()
             DataStore.save(cache: cache)
             guard let self else { return }
             updateMenuState(with: cache)
@@ -261,6 +263,8 @@ struct MenuContent: View {
     private func refreshData() {
         Task {
             let cache = await DataFetcher.refreshAll()
+            QuotaLedgerService.shared.recordRefresh(cache: cache)
+            await QuotaLedgerService.shared.runMonthlyReportIfDue()
             DataStore.save(cache: cache)
             MenuBarState.shared.update(with: cache)
         }
