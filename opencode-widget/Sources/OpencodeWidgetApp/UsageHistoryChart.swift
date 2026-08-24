@@ -55,12 +55,12 @@ struct UsageHistoryChart: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
-                Text("Input usage · 168h")
+                Text("Usage · 168h")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Spacer(minLength: 4)
-                legend(name: "OpenAI", color: .green)
                 legend(name: "DeepSeek", color: .blue)
+                legend(name: "OpenAI", color: .green)
             }
 
             Chart(projection.series, id: \.provider) { series in
