@@ -84,10 +84,9 @@ Actions, in order:
 3. Build summary text: per-day DeepSeek/OpenAI averages, count of top-ups (USD up-deltas), percentage of days with data vs gaps.
 4. **Email** to `fathur6@gmail.com`:
    - Subject: `OpenCode widget quota report — <Month Year>`
-   - Body: summary paragraph.
-   - Attachment: `quota-YYYY-MM.csv` (text/csv).
-   - Via `~/.hermes/skills/productivity/google-workspace/scripts/google_api.py gmail_send` — scope `https://www.googleapis.com/auth/gmail.send` is already authorized. No new credentials.
-5. **Archive**: write the same CSV to `~/Library/Application Support/OpencodeWidgetApp/archive/quota-YYYY-MM.csv` (idempotent overwrite).
+   - Body: a summary paragraph followed by the month's CSV rows rendered as a plain-text block (the existing `gmail_send` cannot attach files, so the CSV is embedded in the body).
+   - Via `~/.hermes/skills/productivity/google-workspace/scripts/google_api.py gmail_send --to fathur6@gmail.com --subject "<…>" --body "<…>"` — scope `https://www.googleapis.com/auth/gmail.send` is already authorized. No new credentials. Email body must be passed as a single CLI argument; any newlines/newlines inside are handled by the sender (plain text).
+5. **Archive**: write the same CSV to `~/Library/Application Support/OpencodeWidgetApp/archive/quota-YYYY-MM.csv` (idempotent overwrite) — the durable copy.
 6. `markMonthEmailed("YYYY-MM")`.
 
 Order: archive the CSV and mark the month as emailed only **after** a successful email, so a send failure does not permanently suppress a retry. If the email fails, do not mark/archive; retry on a later refresh of the same month. If the month has zero rows, do nothing (no email, no archive, no mark).
@@ -134,7 +133,26 @@ refreshAll (900s timer via com.opencode.widget.agent)
   - CSV content and summary text are correct.
   - Send failure → not archived/marked → retried later.
   - First-run back-fill imports cached snapshots only when the ledger is empty and is a no-op afterwards.
-- Email sender is mocked; one real manual Gmail send is performed by the user to confirm delivery.
+- Email sender is mocked in unit tests; one real manual Gmail send is performed by the user to confirm delivery.
+
+### Email sender (`QuotaMailSender`)
+
+The email is sent by shelling out to the existing Hermes Google Workspace script. The sender is behind a small protocol so tests can substitute a fake:
+
+```swift
+protocol QuotaEmailSending {
+    func sendQuotaReport(subject: String, body: String, to: String) async -> Bool
+}
+```
+
+Default implementation runs:
+
+```bash
+python3 ~/.hermes/skills/productivity/google-workspace/scripts/google_api.py \
+  gmail send --to <to> --subject "<subject>" --body "<body>"
+```
+
+and returns `true` on exit code 0. The CSV is embedded in `body` (plain text); no attachment support exists in that script.
 
 ## Non-goals
 
