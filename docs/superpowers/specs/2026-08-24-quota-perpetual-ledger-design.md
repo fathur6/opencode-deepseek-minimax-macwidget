@@ -67,6 +67,8 @@ After DeepSeek balance and OpenAI quota resolve, call `QuotaLedger.record(...)` 
 - `deepseek_usd` = raw USD from `fetchDeepseekBalance` (re-derive from snapshot `remainingRM / usdToMYR`, or pass USD through directly).
 - `openai_percent` = `openAIQuota?.remainingPercent`.
 
+**First-run back-fill:** on the first `QuotaLedger` open, if the ledger table is empty, import the existing capped in-memory history (`WidgetCache.deepseekBalanceHistory` → `deepseek_usd = remainingRM / usdToMYR`, and `WidgetCache.openAIQuotaHistory` → `openai_percent`) into the ledger, so the first month-end report is not missing recent history. Idempotent — only runs when the table is empty.
+
 ### 3. Month-end reporter — `QuotaMonthlyReporter` (strictly last calendar day)
 
 Triggered after each refresh. Emits the report when ALL are true:
@@ -131,12 +133,13 @@ refreshAll (900s timer via com.opencode.widget.agent)
   - No email when month is empty.
   - CSV content and summary text are correct.
   - Send failure → not archived/marked → retried later.
+  - First-run back-fill imports cached snapshots only when the ledger is empty and is a no-op afterwards.
 - Email sender is mocked; one real manual Gmail send is performed by the user to confirm delivery.
 
 ## Non-goals
 
 - Changing the in-memory chart history semantics or the chart/axis rendering.
-- Auto-importing historical data before this feature ships (ledger starts fresh; existing ≤720 cached points can optionally be back-filled on first run — decide during planning).
+- Auto-importing historical data beyond the existing ≤720 cached points (a user-specified decision: back-fill the cache on first run, then the ledger grows forward).
 - Multi-recipient or configurable email addresses beyond `fathur6@gmail.com`.
 - Any UI for inspecting the ledger (CLI `sqlite3` is sufficient).
 
