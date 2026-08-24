@@ -16,6 +16,8 @@ macOS menu bar app that tracks DeepSeek and MiniMax API usage in real time. Show
 - B&W monochrome design
 - DeepSeek remaining history: a 168-hour view with up to 30 days of local hourly snapshots. Green bars are top-ups, gray bars are balance reductions, and left/right controls move both charts together by one day.
 - Remaining Quota: a scrollable 168-hour view with up to 30 days of local hourly snapshots. Blue is the DeepSeek balance in USD (left axis); green is the OpenAI remaining percent (right axis, 0/50/100%).
+- Durable 12-month ledger: every hourly quota snapshot is stored in a local SQLite database and survives app rebuilds and restarts. The Quota chart history is seeded from this ledger each refresh.
+- Month-end report: on the last calendar day of each month, a summary plus the month's snapshot data is emailed and archived locally.
 
 ## Example
 
