@@ -1,6 +1,10 @@
 import Foundation
+#if canImport(OpencodeWidgetLedger)
 import OpencodeWidgetLedger
+#endif
+#if canImport(OpencodeWidgetShared)
 import OpencodeWidgetShared
+#endif
 
 struct ProcessQuotaEmailSender: QuotaEmailSending {
     let script = "\(NSHomeDirectory())/.hermes/skills/productivity/google-workspace/scripts/google_api.py"

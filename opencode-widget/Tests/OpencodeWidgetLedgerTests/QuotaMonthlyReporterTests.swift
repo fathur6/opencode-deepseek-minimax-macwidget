@@ -19,7 +19,7 @@ final class QuotaMonthlyReporterTests: XCTestCase {
         super.tearDown()
     }
 
-    final class FakeSender: QuotaEmailSending {
+    final class FakeSender: QuotaEmailSending, @unchecked Sendable {
         var calls: [(subject: String, body: String, to: String)] = []
         var result = true
         func sendQuotaReport(subject: String, body: String, to: String) async -> Bool {

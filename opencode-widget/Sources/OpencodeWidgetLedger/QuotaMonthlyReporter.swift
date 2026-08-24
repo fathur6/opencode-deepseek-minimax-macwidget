@@ -1,6 +1,6 @@
 import Foundation
 
-public protocol QuotaEmailSending {
+public protocol QuotaEmailSending: Sendable {
     func sendQuotaReport(subject: String, body: String, to: String) async -> Bool
 }
 
@@ -85,15 +85,15 @@ public enum QuotaReportFormatter {
     }
 }
 
-public class QuotaMonthlyReporter {
+public final class QuotaMonthlyReporter: @unchecked Sendable {
     private let ledger: QuotaLedger
     private let sender: QuotaEmailSending
     private let to: String
-    private let now: () -> Date
+    private let now: @Sendable () -> Date
     private let calendar: Calendar
     private let archiveDir: String?
 
-    public init(ledger: QuotaLedger, sender: QuotaEmailSending, to: String, now: @escaping () -> Date, calendar: Calendar = .current, archiveDir: String? = nil) {
+    public init(ledger: QuotaLedger, sender: QuotaEmailSending, to: String, now: @escaping @Sendable () -> Date, calendar: Calendar = .current, archiveDir: String? = nil) {
         self.ledger = ledger
         self.sender = sender
         self.to = to

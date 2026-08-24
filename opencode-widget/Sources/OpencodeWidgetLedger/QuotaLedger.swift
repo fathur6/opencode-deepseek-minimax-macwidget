@@ -1,6 +1,8 @@
 import Foundation
 import SQLite3
+#if canImport(OpencodeWidgetShared)
 import OpencodeWidgetShared
+#endif
 
 public final class QuotaLedger {
     private var db: OpaquePointer?
