@@ -85,10 +85,6 @@ struct RemainingQuotaChart: View {
         "$" + (plotY * axisMax).formatted(.number.notation(.compactName).precision(.fractionLength(0)))
     }
 
-    func percentLabel(_ plotY: Double, axisMax: Double) -> String {
-        (plotY * axisMax).formatted(.number.precision(.fractionLength(0))) + "%"
-    }
-
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
@@ -177,14 +173,6 @@ struct RemainingQuotaChart: View {
                         AxisValueLabel {
                             if let plotY = value.as(Double.self) {
                                 Text(usdLabel(plotY, axisMax: projection.usdAxisMax))
-                                    .font(.system(size: 8, design: .monospaced))
-                            }
-                        }
-                    }
-                    AxisMarks(position: .trailing, values: [0, 0.5, 1]) { value in
-                        AxisValueLabel {
-                            if let plotY = value.as(Double.self) {
-                                Text(percentLabel(plotY, axisMax: projection.percentAxisMax))
                                     .font(.system(size: 8, design: .monospaced))
                             }
                         }
