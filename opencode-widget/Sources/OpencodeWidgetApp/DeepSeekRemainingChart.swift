@@ -29,7 +29,7 @@ struct RemainingQuotaChartProjection: Equatable {
     let consumption: [DeepSeekBalanceDelta]
     let xDomain: ClosedRange<Date>
     let plotYDomain: ClosedRange<Double>
-    let rmAxisMax: Double
+    let usdAxisMax: Double
     let percentAxisMax: Double
 
     private static let deepseekSeriesKey = "DeepSeek"
@@ -39,12 +39,13 @@ struct RemainingQuotaChartProjection: Equatable {
         deepseekSeriesColor = "blue"
         openAISeriesColor = "green"
 
-        let maxRM = max(1, deepseekSnapshots.map(\.remainingRM).max() ?? 0)
-        let rmAxisMax = maxRM * 1.1
+        let usdToMYR = DeepSeekBalanceHistory.usdToMYR
+        let maxUSD = max(1, deepseekSnapshots.map { $0.remainingRM / usdToMYR }.max() ?? 0)
+        let usdAxisMax = maxUSD * 1.1
         let percentAxisMax = 100.0
 
         deepseekPoints = deepseekSnapshots.map {
-            RemainingQuotaChartPoint(series: Self.deepseekSeriesKey, hour: $0.hour, y: $0.remainingRM / rmAxisMax)
+            RemainingQuotaChartPoint(series: Self.deepseekSeriesKey, hour: $0.hour, y: ($0.remainingRM / usdToMYR) / usdAxisMax)
         }
         openAIPoints = openAISnapshots.map {
             RemainingQuotaChartPoint(series: Self.openAISeriesKey, hour: $0.hour, y: $0.remainingPercent / percentAxisMax)
@@ -54,15 +55,15 @@ struct RemainingQuotaChartProjection: Equatable {
         var consumption: [DeepSeekBalanceDelta] = []
         for (previous, current) in zip(deepseekSnapshots, deepseekSnapshots.dropFirst()) {
             let delta = current.remainingRM - previous.remainingRM
-            if delta > 0 { topUps.append(.init(hour: current.hour, amount: delta, colorName: "green")) }
-            if delta < 0 { consumption.append(.init(hour: current.hour, amount: -delta, colorName: "gray")) }
+            if delta > 0 { topUps.append(.init(hour: current.hour, amount: delta / usdToMYR, colorName: "green")) }
+            if delta < 0 { consumption.append(.init(hour: current.hour, amount: -delta / usdToMYR, colorName: "gray")) }
         }
 
         self.topUps = topUps
         self.consumption = consumption
         self.xDomain = xDomain
         self.plotYDomain = 0...1
-        self.rmAxisMax = rmAxisMax
+        self.usdAxisMax = usdAxisMax
         self.percentAxisMax = percentAxisMax
     }
 }
@@ -80,8 +81,8 @@ struct RemainingQuotaChart: View {
         )
     }
 
-    func rmLabel(_ plotY: Double, axisMax: Double) -> String {
-        "RM" + (plotY * axisMax).formatted(.number.notation(.compactName).precision(.fractionLength(0)))
+    func usdLabel(_ plotY: Double, axisMax: Double) -> String {
+        "$" + (plotY * axisMax).formatted(.number.notation(.compactName).precision(.fractionLength(0)))
     }
 
     func percentLabel(_ plotY: Double, axisMax: Double) -> String {
@@ -150,7 +151,7 @@ struct RemainingQuotaChart: View {
                         BarMark(
                             x: .value("Hour", topUp.hour),
                             yStart: .value("Zero", 0),
-                            yEnd: .value("Top up", topUp.amount / projection.rmAxisMax)
+                            yEnd: .value("Top up", topUp.amount / projection.usdAxisMax)
                         )
                         .foregroundStyle(.green)
                     }
@@ -159,7 +160,7 @@ struct RemainingQuotaChart: View {
                         BarMark(
                             x: .value("Hour", event.hour),
                             yStart: .value("Zero", 0),
-                            yEnd: .value("Consumption", event.amount / projection.rmAxisMax)
+                            yEnd: .value("Consumption", event.amount / projection.usdAxisMax)
                         )
                         .foregroundStyle(.gray)
                     }
@@ -193,12 +194,12 @@ struct RemainingQuotaChart: View {
                             .foregroundStyle(.secondary.opacity(0.15))
                         AxisValueLabel {
                             if let plotY = value.as(Double.self) {
-                                Text(rmLabel(plotY, axisMax: projection.rmAxisMax))
+                                Text(usdLabel(plotY, axisMax: projection.usdAxisMax))
                                     .font(.system(size: 8, design: .monospaced))
                             }
                         }
                     }
-                    AxisMarks(position: .trailing, values: [1]) { value in
+                    AxisMarks(position: .trailing, values: [0, 0.5, 1]) { value in
                         AxisValueLabel {
                             if let plotY = value.as(Double.self) {
                                 Text(percentLabel(plotY, axisMax: projection.percentAxisMax))

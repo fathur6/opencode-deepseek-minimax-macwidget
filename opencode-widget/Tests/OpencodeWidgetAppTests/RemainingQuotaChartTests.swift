@@ -19,7 +19,7 @@ final class RemainingQuotaChartTests: XCTestCase {
         XCTAssertEqual(projection.openAISeriesColor, "green")
         XCTAssertEqual(projection.xDomain, xDomain)
         XCTAssertEqual(projection.plotYDomain, 0...1)
-        XCTAssertTrue(projection.rmAxisMax > 0)
+        XCTAssertTrue(projection.usdAxisMax > 0)
         XCTAssertEqual(projection.percentAxisMax, 100)
     }
 

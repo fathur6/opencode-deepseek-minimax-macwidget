@@ -25,8 +25,8 @@ final class DeepSeekRemainingChartTests: XCTestCase {
             xDomain: start...start.addingTimeInterval(167 * 3_600)
         )
 
-        XCTAssertEqual(projection.consumption.map(\.amount), [5])
-        XCTAssertEqual(projection.topUps.map(\.amount), [30])
+        XCTAssertEqual(projection.consumption.map(\.amount), [5 / DeepSeekBalanceHistory.usdToMYR])
+        XCTAssertEqual(projection.topUps.map(\.amount), [30 / DeepSeekBalanceHistory.usdToMYR])
         XCTAssertEqual(projection.topUps.first?.colorName, "green")
         XCTAssertEqual(projection.consumption.first?.colorName, "gray")
     }
