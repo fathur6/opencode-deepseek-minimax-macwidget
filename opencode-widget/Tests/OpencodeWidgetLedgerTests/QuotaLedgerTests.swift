@@ -87,4 +87,23 @@ final class QuotaLedgerTests: XCTestCase {
         XCTAssertLessThan(recent[1].hour, recent[2].hour)
         XCTAssertEqual(recent.last?.hour, base.addingTimeInterval(4 * 3_600))
     }
+
+    func testRecordReplacesSameHoursUsageAndCost() {
+        let hour = Date(timeIntervalSince1970: 1_800_000_000)
+        ledger.record(hour: hour, deepseekUSD: 4, openaiPercent: 70, deepseekInputTokens: 10, openAIInputTokens: 100, openAIEstimatedCostUSD: 0.25, source: "all")
+        ledger.record(hour: hour, deepseekUSD: 3, openaiPercent: 60, deepseekInputTokens: 20, openAIInputTokens: 200, openAIEstimatedCostUSD: 0.75, source: "all")
+
+        XCTAssertEqual(ledger.count(), 1)
+        XCTAssertEqual(ledger.recentSnapshots(limit: 1).first?.openAIInputTokens, 200)
+        XCTAssertEqual(ledger.recentSnapshots(limit: 1).first?.openAIEstimatedCostUSD, 0.75)
+    }
+
+    func testActiveOpenAICostIncludesOnlyQuotaWindow() {
+        let reset = Date(timeIntervalSince1970: 2_000_000_000)
+        ledger.record(hour: reset.addingTimeInterval(-169 * 3_600), deepseekUSD: nil, openaiPercent: nil, deepseekInputTokens: nil, openAIInputTokens: 1, openAIEstimatedCostUSD: 9, source: "openai")
+        ledger.record(hour: reset.addingTimeInterval(-168 * 3_600), deepseekUSD: nil, openaiPercent: nil, deepseekInputTokens: nil, openAIInputTokens: 1, openAIEstimatedCostUSD: 2, source: "openai")
+        ledger.record(hour: reset.addingTimeInterval(-1 * 3_600), deepseekUSD: nil, openaiPercent: nil, deepseekInputTokens: nil, openAIInputTokens: 1, openAIEstimatedCostUSD: 3, source: "openai")
+
+        XCTAssertEqual(ledger.activeOpenAIEstimatedCost(from: reset.addingTimeInterval(-168 * 3_600), through: reset), 5)
+    }
 }
