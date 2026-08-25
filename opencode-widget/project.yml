@@ -11,6 +11,7 @@ targets:
     sources:
       - Sources/OpencodeWidgetApp
       - Sources/OpencodeWidgetShared
+      - Sources/OpencodeWidgetLedger
       - path: OpencodeWidgetApp/Resources
         type: folder
       - path: OpencodeWidgetApp/AppIcon.icns

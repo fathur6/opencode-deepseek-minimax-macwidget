@@ -23,7 +23,7 @@ struct UsageHistoryResult: Sendable {
 /// Assembles local client histories additively. Hermes rows are cumulative
 /// backfill attributed to `last_seen`, not exact per-request timestamps.
 struct UsageHistoryFetcher: Sendable {
-    static let bucketCount = 168
+    static let bucketCount = DeepSeekBalanceHistory.maximumHours
 
     let now: Date
     let openCodeDatabasePath: String
@@ -48,11 +48,10 @@ struct UsageHistoryFetcher: Sendable {
     func fetch() -> UsageHistoryResult {
         let openCode = readOpenCode()
         let hermes = readHermes()
-        let codex = readCodex()
-        let events = openCode.events + hermes.events + codex.events
+        let events = openCode.events + hermes.events
         return UsageHistoryResult(
             buckets: Self.makeBuckets(events: events, now: now),
-            anySourceReadable: openCode.readable || hermes.readable || codex.readable
+            anySourceReadable: openCode.readable || hermes.readable
         )
     }
 
@@ -92,29 +91,29 @@ struct UsageHistoryFetcher: Sendable {
     private func readOpenCode() -> SourceRead {
         readDatabase(path: openCodeDatabasePath, query: """
             SELECT time_created,
-                   json_extract(data, '$.providerID'),
+                    'deepseek',
                    COALESCE(json_extract(data, '$.tokens.input'), 0) +
                    COALESCE(json_extract(data, '$.tokens.cache.read'), 0) +
                    COALESCE(json_extract(data, '$.tokens.cache.write'), 0)
             FROM message
             WHERE json_valid(data)
               AND json_extract(data, '$.role') = 'assistant'
-              AND json_extract(data, '$.providerID') IN ('openai', 'deepseek')
+              AND json_extract(data, '$.providerID') = 'deepseek'
               AND time_created >= ? AND time_created <= ?
             """, cutoff: Int64(cutoff.timeIntervalSince1970 * 1_000), upper: Int64(now.timeIntervalSince1970 * 1_000), timestampDivisor: 1_000) { value in
-                value == "openai" ? .openAI : value == "deepseek" ? .deepseek : nil
+                value == "deepseek" ? .deepseek : nil
             }
     }
 
     private func readHermes() -> SourceRead {
         readDatabase(path: hermesDatabasePath, query: """
-            SELECT last_seen, billing_provider,
+            SELECT last_seen, 'deepseek',
                    COALESCE(input_tokens, 0) + COALESCE(cache_read_tokens, 0) + COALESCE(cache_write_tokens, 0)
             FROM session_model_usage
-            WHERE billing_provider IN ('openai-codex', 'deepseek')
+              WHERE billing_provider = 'deepseek'
               AND last_seen >= ? AND last_seen <= ?
             """, cutoff: Int64(cutoff.timeIntervalSince1970), upper: Int64(now.timeIntervalSince1970), timestampDivisor: 1) { value in
-                value == "openai-codex" ? .openAI : value == "deepseek" ? .deepseek : nil
+                value == "deepseek" ? .deepseek : nil
             }
     }
 
@@ -164,86 +163,4 @@ struct UsageHistoryFetcher: Sendable {
         return Date(timeIntervalSince1970: endHour - Double(Self.bucketCount - 1) * 3_600)
     }
 
-    private func readCodex() -> SourceRead {
-        var readable = false
-        var events: [UsageTokenEvent] = []
-        var visited = Set<String>()
-
-        for root in codexRoots {
-            let canonicalRoot = root.standardizedFileURL.resolvingSymlinksInPath()
-            guard visited.insert(canonicalRoot.path).inserted else { continue }
-            var isDirectory: ObjCBool = false
-            guard FileManager.default.fileExists(atPath: canonicalRoot.path, isDirectory: &isDirectory), isDirectory.boolValue else { continue }
-            readable = true
-            guard let enumerator = FileManager.default.enumerator(
-                at: canonicalRoot,
-                includingPropertiesForKeys: [.contentModificationDateKey, .isRegularFileKey],
-                options: [.skipsHiddenFiles, .skipsPackageDescendants]
-            ) else { continue }
-
-            for case let fileURL as URL in enumerator {
-                guard fileURL.pathExtension == "jsonl", visited.insert(fileURL.standardizedFileURL.path).inserted else { continue }
-                let values = try? fileURL.resourceValues(forKeys: [.contentModificationDateKey, .isRegularFileKey])
-                guard values?.isRegularFile == true else { continue }
-                if let modified = values?.contentModificationDate, modified < cutoff { continue }
-                events.append(contentsOf: readCodexFile(fileURL))
-            }
-        }
-        return (events, readable)
-    }
-
-    private func readCodexFile(_ url: URL) -> [UsageTokenEvent] {
-        guard let handle = try? FileHandle(forReadingFrom: url) else { return [] }
-        defer { try? handle.close() }
-        var buffer = Data()
-        var events: [UsageTokenEvent] = []
-        var previousTotal: Int64?
-
-        func consume(_ line: Data) {
-            guard let object = try? JSONSerialization.jsonObject(with: line) as? [String: Any],
-                  object["type"] as? String == "event_msg",
-                  let payload = object["payload"] as? [String: Any],
-                  payload["type"] as? String == "token_count",
-                  let timestampText = object["timestamp"] as? String,
-                  let timestamp = ISO8601DateFormatter().date(from: timestampText),
-                  timestamp >= cutoff, timestamp <= now,
-                  let info = payload["info"] as? [String: Any] else { return }
-
-            let total = info["total_token_usage"] as? [String: Any]
-            if let last = info["last_token_usage"] as? [String: Any] {
-                let tokens = codexInputTokens(last)
-                if tokens > 0 {
-                    events.append(UsageTokenEvent(provider: .openAI, timestamp: timestamp, inputTokens: tokens))
-                }
-                if let total {
-                    previousTotal = codexInputTokens(total)
-                }
-            } else if let total {
-                let current = codexInputTokens(total)
-                let delta = previousTotal.map { max(0, current - $0) } ?? current
-                previousTotal = current
-                if delta > 0 {
-                    events.append(UsageTokenEvent(provider: .openAI, timestamp: timestamp, inputTokens: delta))
-                }
-            }
-        }
-
-        while let chunk = try? handle.read(upToCount: 64 * 1_024), !chunk.isEmpty {
-            buffer.append(chunk)
-            while let newline = buffer.firstIndex(of: 0x0A) {
-                consume(buffer[..<newline])
-                buffer.removeSubrange(...newline)
-            }
-        }
-        if !buffer.isEmpty { consume(buffer) }
-        return events
-    }
-
-    private func codexInputTokens(_ values: [String: Any]) -> Int64 {
-        // Codex reports cached/cache-write tokens as subsets of input_tokens.
-        // Adding the detail counters would count those prompt tokens twice.
-        guard let number = values["input_tokens"] as? NSNumber else { return 0 }
-        let value = number.doubleValue
-        return value.isFinite && value > 0 ? Int64(value.rounded()) : 0
-    }
 }

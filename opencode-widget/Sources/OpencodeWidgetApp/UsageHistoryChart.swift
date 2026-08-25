@@ -27,9 +27,7 @@ struct UsageHistoryChartProjection: Equatable, Sendable {
     let yDomain: ClosedRange<Double>
     let xDomain: ClosedRange<Date>
 
-    init(buckets: [HourlyUsageBucket]) {
-        let fallbackStart = buckets.first?.hour ?? Date(timeIntervalSince1970: 0)
-        let fallbackEnd = buckets.last?.hour ?? fallbackStart.addingTimeInterval(3_600)
+    init(buckets: [HourlyUsageBucket], xDomain: ClosedRange<Date>) {
         let openAI = buckets.map {
             UsageHistoryChartPoint(provider: .openAI, hour: $0.hour, tokens: max(0, $0.smoothedOpenAIInputTokens))
         }
@@ -42,26 +40,27 @@ struct UsageHistoryChartProjection: Equatable, Sendable {
         ]
         let maximum = max(1, (openAI + deepseek).map(\.tokens).filter(\.isFinite).max() ?? 0)
         yDomain = 0...(maximum * 1.1)
-        xDomain = fallbackStart...max(fallbackStart.addingTimeInterval(1), fallbackEnd)
+        self.xDomain = xDomain
     }
 }
 
 struct UsageHistoryChart: View {
     let buckets: [HourlyUsageBucket]
+    let xDomain: ClosedRange<Date>
 
     private var projection: UsageHistoryChartProjection {
-        UsageHistoryChartProjection(buckets: buckets)
+        UsageHistoryChartProjection(buckets: buckets, xDomain: xDomain)
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
-                Text("Input usage · 168h")
+                Text("Usage")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Spacer(minLength: 4)
-                legend(name: "OpenAI", color: .green)
                 legend(name: "DeepSeek", color: .blue)
+                legend(name: "OpenAI", color: .green)
             }
 
             Chart(projection.series, id: \.provider) { series in

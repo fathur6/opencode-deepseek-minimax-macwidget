@@ -163,6 +163,73 @@ public struct QuotaResetTimeline: Sendable, Equatable {
     }
 }
 
+public struct DeepSeekBalanceSnapshot: Codable, Equatable, Sendable, Identifiable {
+    public var id: Date { hour }
+    public let hour: Date
+    public let remainingRM: Double
+
+    public init(hour: Date, remainingRM: Double) {
+        self.hour = hour
+        self.remainingRM = remainingRM
+    }
+}
+
+public enum DeepSeekBalanceHistory {
+    public static let maximumHours = 720
+    public static let usdToMYR = 4.5
+
+    public static func appending(
+        balanceUSD: Double?,
+        at date: Date,
+        to snapshots: [DeepSeekBalanceSnapshot]
+    ) -> [DeepSeekBalanceSnapshot] {
+        guard let balanceUSD, balanceUSD.isFinite, balanceUSD >= 0 else { return snapshots }
+        let timestamp = floor(date.timeIntervalSince1970 / 3_600) * 3_600
+        let snapshot = DeepSeekBalanceSnapshot(
+            hour: Date(timeIntervalSince1970: timestamp),
+            remainingRM: balanceUSD * usdToMYR
+        )
+        var result = snapshots.filter { $0.hour != snapshot.hour }
+        result.append(snapshot)
+        result.sort { $0.hour < $1.hour }
+        return Array(result.suffix(maximumHours))
+    }
+}
+
+public struct OpenAIQuotaSnapshot: Codable, Equatable, Sendable, Identifiable {
+    public var id: Date { hour }
+    public let hour: Date
+    public let remainingPercent: Double
+
+    public init(hour: Date, remainingPercent: Double) {
+        self.hour = hour
+        self.remainingPercent = remainingPercent
+    }
+}
+
+public enum OpenAIQuotaHistory {
+    public static let maximumHours = 720
+
+    public static func appending(
+        remainingPercent: Double?,
+        at date: Date,
+        to snapshots: [OpenAIQuotaSnapshot]
+    ) -> [OpenAIQuotaSnapshot] {
+        guard let remainingPercent,
+              remainingPercent.isFinite,
+              (0...100).contains(remainingPercent) else { return snapshots }
+        let timestamp = floor(date.timeIntervalSince1970 / 3_600) * 3_600
+        let snapshot = OpenAIQuotaSnapshot(
+            hour: Date(timeIntervalSince1970: timestamp),
+            remainingPercent: remainingPercent
+        )
+        var result = snapshots.filter { $0.hour != snapshot.hour }
+        result.append(snapshot)
+        result.sort { $0.hour < $1.hour }
+        return Array(result.suffix(maximumHours))
+    }
+}
+
 public struct WidgetCache: Codable {
     public let lastUpdated: Date
     public var deepseek: ProviderBalance
@@ -173,8 +240,10 @@ public struct WidgetCache: Codable {
     public var dailyUsage: [DailyUsageRow]
     public var openAIQuota: OpenAIQuota?
     public var hourlyUsage: [HourlyUsageBucket]
+    public var deepseekBalanceHistory: [DeepSeekBalanceSnapshot]
+    public var openAIQuotaHistory: [OpenAIQuotaSnapshot]
 
-    public init(lastUpdated: Date = Date(), deepseek: ProviderBalance = ProviderBalance(), minimax: ProviderBalance = ProviderBalance(), minimaxUsage: MiniMaxUsage? = nil, minimaxCredit: Double? = nil, minimaxCreditFetched: Date? = nil, dailyUsage: [DailyUsageRow] = [], openAIQuota: OpenAIQuota? = nil, hourlyUsage: [HourlyUsageBucket] = []) {
+    public init(lastUpdated: Date = Date(), deepseek: ProviderBalance = ProviderBalance(), minimax: ProviderBalance = ProviderBalance(), minimaxUsage: MiniMaxUsage? = nil, minimaxCredit: Double? = nil, minimaxCreditFetched: Date? = nil, dailyUsage: [DailyUsageRow] = [], openAIQuota: OpenAIQuota? = nil, hourlyUsage: [HourlyUsageBucket] = [], deepseekBalanceHistory: [DeepSeekBalanceSnapshot] = [], openAIQuotaHistory: [OpenAIQuotaSnapshot] = []) {
         self.lastUpdated = lastUpdated
         self.deepseek = deepseek
         self.minimax = minimax
@@ -184,11 +253,13 @@ public struct WidgetCache: Codable {
         self.dailyUsage = dailyUsage
         self.openAIQuota = openAIQuota
         self.hourlyUsage = hourlyUsage
+        self.deepseekBalanceHistory = deepseekBalanceHistory
+        self.openAIQuotaHistory = openAIQuotaHistory
     }
 
     private enum CodingKeys: String, CodingKey {
         case lastUpdated, deepseek, minimax, minimaxUsage, minimaxCredit
-        case minimaxCreditFetched, dailyUsage, openAIQuota, hourlyUsage
+        case minimaxCreditFetched, dailyUsage, openAIQuota, hourlyUsage, deepseekBalanceHistory, openAIQuotaHistory
     }
 
     public init(from decoder: Decoder) throws {
@@ -202,9 +273,11 @@ public struct WidgetCache: Codable {
         dailyUsage = try values.decodeIfPresent([DailyUsageRow].self, forKey: .dailyUsage) ?? []
         openAIQuota = try values.decodeIfPresent(OpenAIQuota.self, forKey: .openAIQuota)
         hourlyUsage = try values.decodeIfPresent([HourlyUsageBucket].self, forKey: .hourlyUsage) ?? []
+        deepseekBalanceHistory = try values.decodeIfPresent([DeepSeekBalanceSnapshot].self, forKey: .deepseekBalanceHistory) ?? []
+        openAIQuotaHistory = try values.decodeIfPresent([OpenAIQuotaSnapshot].self, forKey: .openAIQuotaHistory) ?? []
     }
 
     public var isEmpty: Bool {
-        dailyUsage.isEmpty && hourlyUsage.isEmpty && deepseek.balance == nil && minimax.balance == nil && openAIQuota == nil
+        dailyUsage.isEmpty && hourlyUsage.isEmpty && deepseek.balance == nil && minimax.balance == nil && openAIQuota == nil && openAIQuotaHistory.isEmpty
     }
 }

@@ -17,9 +17,9 @@ final class UsageHistoryFetcherTests: XCTestCase {
         root = nil
     }
 
-    func testBucketingReturns168AlignedHoursAndTrailingMean() {
+    func testBucketingReturnsThirtyDaysOfAlignedHoursAndTrailingMean() {
         let endHour = floor(now.timeIntervalSince1970 / 3_600) * 3_600
-        let firstHour = endHour - 167 * 3_600
+        let firstHour = endHour - 719 * 3_600
         let events = [
             UsageTokenEvent(provider: .openAI, timestamp: Date(timeIntervalSince1970: firstHour), inputTokens: 3),
             UsageTokenEvent(provider: .openAI, timestamp: Date(timeIntervalSince1970: firstHour + 2 * 3_600), inputTokens: 9),
@@ -29,7 +29,7 @@ final class UsageHistoryFetcherTests: XCTestCase {
 
         let buckets = UsageHistoryFetcher.makeBuckets(events: events, now: now)
 
-        XCTAssertEqual(buckets.count, 168)
+        XCTAssertEqual(buckets.count, 720)
         XCTAssertEqual(buckets.first?.hour, Date(timeIntervalSince1970: firstHour))
         XCTAssertEqual(buckets.last?.hour, Date(timeIntervalSince1970: endHour))
         XCTAssertEqual(buckets[0].smoothedOpenAIInputTokens, 3)
@@ -58,7 +58,7 @@ final class UsageHistoryFetcherTests: XCTestCase {
         ).fetch()
 
         XCTAssertTrue(result.anySourceReadable)
-        XCTAssertEqual(result.buckets.reduce(0) { $0 + $1.openAIInputTokens }, 15)
+        XCTAssertEqual(result.buckets.reduce(0) { $0 + $1.openAIInputTokens }, 0)
         XCTAssertEqual(result.buckets.reduce(0) { $0 + $1.deepseekInputTokens }, 25)
     }
 
@@ -79,46 +79,11 @@ final class UsageHistoryFetcherTests: XCTestCase {
         ).fetch()
 
         XCTAssertTrue(result.anySourceReadable)
-        XCTAssertEqual(result.buckets.reduce(0) { $0 + $1.openAIInputTokens }, 11)
+        XCTAssertEqual(result.buckets.reduce(0) { $0 + $1.openAIInputTokens }, 0)
         XCTAssertEqual(result.buckets.reduce(0) { $0 + $1.deepseekInputTokens }, 25)
     }
 
-    func testCodexPrefersLastUsageAndUsesPositivePerFileDeltas() throws {
-        let active = root.appendingPathComponent("sessions/2027/01/15")
-        let archived = root.appendingPathComponent("archived_sessions")
-        try FileManager.default.createDirectory(at: active, withIntermediateDirectories: true)
-        try FileManager.default.createDirectory(at: archived, withIntermediateDirectories: true)
-        let t1 = ISO8601DateFormatter().string(from: now.addingTimeInterval(-3_600))
-        let t2 = ISO8601DateFormatter().string(from: now.addingTimeInterval(-1_800))
-        let lines = [
-            "not json",
-            tokenLine(
-                timestamp: t1,
-                last: ["input_tokens": 5, "cached_input_tokens": 2, "cache_write_input_tokens": 1],
-                total: ["input_tokens": 100, "cached_input_tokens": 10]
-            ),
-            tokenLine(timestamp: t2, total: ["input_tokens": 130, "cached_input_tokens": 15]),
-            tokenLine(timestamp: t2, total: ["input_tokens": 120, "cached_input_tokens": 14])
-        ]
-        let activeFile = active.appendingPathComponent("rollout-a.jsonl")
-        let archivedFile = archived.appendingPathComponent("rollout-b.jsonl")
-        try lines.joined(separator: "\n").write(to: activeFile, atomically: true, encoding: .utf8)
-        try tokenLine(timestamp: t2, total: ["input_tokens": 7]).write(to: archivedFile, atomically: true, encoding: .utf8)
-        try FileManager.default.setAttributes([.modificationDate: now], ofItemAtPath: activeFile.path)
-        try FileManager.default.setAttributes([.modificationDate: now], ofItemAtPath: archivedFile.path)
-
-        let result = UsageHistoryFetcher(
-            now: now,
-            openCodeDatabasePath: root.appendingPathComponent("missing-open.db").path,
-            hermesDatabasePath: root.appendingPathComponent("missing-hermes.db").path,
-            codexRoots: [root.appendingPathComponent("sessions"), archived, archived]
-        ).fetch()
-
-        XCTAssertTrue(result.anySourceReadable)
-        XCTAssertEqual(result.buckets.reduce(0) { $0 + $1.openAIInputTokens }, 5 + 30 + 7)
-    }
-
-    func testUnavailableSourcesAreDistinguishedFromReadableEmptySource() throws {
+    func testCodexOnlyHistoryIsUnavailableToKeepOpenAISeriesLedgerOwned() throws {
         let missing = root.appendingPathComponent("missing")
         let unavailable = UsageHistoryFetcher(
             now: now,
@@ -136,8 +101,8 @@ final class UsageHistoryFetcherTests: XCTestCase {
             hermesDatabasePath: missing.path,
             codexRoots: [emptyRoot]
         ).fetch()
-        XCTAssertTrue(readable.anySourceReadable)
-        XCTAssertEqual(readable.buckets.count, 168)
+        XCTAssertFalse(readable.anySourceReadable)
+        XCTAssertEqual(readable.buckets.count, 720)
         XCTAssertTrue(readable.buckets.allSatisfy { $0.openAIInputTokens == 0 && $0.deepseekInputTokens == 0 })
     }
 
@@ -146,8 +111,9 @@ final class UsageHistoryFetcherTests: XCTestCase {
             HourlyUsageBucket(hour: now, smoothedOpenAIInputTokens: 10, smoothedDeepseekInputTokens: 5),
             HourlyUsageBucket(hour: now.addingTimeInterval(3_600))
         ]
+        let xDomain = now...now.addingTimeInterval(167 * 3_600)
 
-        let projection = UsageHistoryChartProjection(buckets: buckets)
+        let projection = UsageHistoryChartProjection(buckets: buckets, xDomain: xDomain)
 
         XCTAssertEqual(projection.series.map(\.provider), [.openAI, .deepseek])
         XCTAssertEqual(projection.series.map(\.colorName), ["green", "blue"])
@@ -155,6 +121,7 @@ final class UsageHistoryFetcherTests: XCTestCase {
         XCTAssertEqual(projection.yDomain.lowerBound, 0)
         XCTAssertTrue(projection.yDomain.upperBound.isFinite)
         XCTAssertGreaterThan(projection.yDomain.upperBound, 0)
+        XCTAssertEqual(projection.xDomain, xDomain)
     }
 
     private func milliseconds(hoursAgo: Int) -> Int64 { Int64(now.addingTimeInterval(Double(-hoursAgo * 3_600)).timeIntervalSince1970 * 1_000) }
@@ -163,15 +130,6 @@ final class UsageHistoryFetcherTests: XCTestCase {
     private func openCodeInsert(role: String, provider: String, milliseconds: Int64, input: Int, read: Int, write: Int) -> String {
         let json = #"{"role":"\#(role)","providerID":"\#(provider)","tokens":{"input":\#(input),"cache":{"read":\#(read),"write":\#(write)}}}"#
         return "INSERT INTO message VALUES ('\(UUID().uuidString)', 's', \(milliseconds), \(milliseconds), '\(json)')"
-    }
-
-    private func tokenLine(timestamp: String, last: [String: Int]? = nil, total: [String: Int]? = nil) -> String {
-        var info: [String: Any] = [:]
-        if let last { info["last_token_usage"] = last }
-        if let total { info["total_token_usage"] = total }
-        let object: [String: Any] = ["timestamp": timestamp, "type": "event_msg", "payload": ["type": "token_count", "info": info]]
-        let data = try! JSONSerialization.data(withJSONObject: object, options: [.sortedKeys])
-        return String(decoding: data, as: UTF8.self)
     }
 
     private func makeDatabase(at url: URL, statements: [String]) throws {

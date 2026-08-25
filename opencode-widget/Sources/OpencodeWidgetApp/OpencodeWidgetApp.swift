@@ -11,8 +11,31 @@ class MenuBarState {
     var deepseekBalance: Double?
     var minimaxBalance: Double?
     var openAIQuota: OpenAIQuota?
+    var openAIEstimatedCost = 0.0
     var hourlyUsage: [HourlyUsageBucket] = []
+    var deepseekBalanceHistory: [DeepSeekBalanceSnapshot] = []
+    var openAIQuotaHistory: [OpenAIQuotaSnapshot] = []
     var lastUpdated: Date?
+    private let estimatedCost: @MainActor (Date) -> Double
+
+    init(estimatedCost: @escaping @MainActor (Date) -> Double = { resetDate in
+        QuotaLedgerService.shared.activeOpenAIEstimatedCost(resetDate: resetDate)
+    }) {
+        self.estimatedCost = estimatedCost
+    }
+
+    func update(with cache: WidgetCache) {
+        deepseekBalance = cache.deepseek.balance
+        minimaxBalance = cache.minimax.balance
+        openAIQuota = cache.openAIQuota
+        if let resetDate = cache.openAIQuota?.resetDate {
+            openAIEstimatedCost = estimatedCost(resetDate)
+        }
+        hourlyUsage = cache.hourlyUsage
+        deepseekBalanceHistory = cache.deepseekBalanceHistory
+        openAIQuotaHistory = cache.openAIQuotaHistory
+        lastUpdated = cache.lastUpdated
+    }
 }
 
 @main
@@ -90,25 +113,25 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private func refreshData() {
         Task { [weak self] in
             let cache = await DataFetcher.refreshAll()
-            DataStore.save(cache: cache)
+            QuotaLedgerService.shared.recordRefresh(cache: cache)
+            await QuotaLedgerService.shared.runMonthlyReportIfDue()
+            let seeded = QuotaLedgerService.shared.seededCache(from: cache)
+            DataStore.save(cache: seeded)
             guard let self else { return }
-            updateMenuState(with: cache)
+            updateMenuState(with: seeded)
             updateStatusIcon()
         }
     }
 
     private func updateMenuState(with cache: WidgetCache) {
-        MenuBarState.shared.deepseekBalance = cache.deepseek.balance
-        MenuBarState.shared.minimaxBalance = cache.minimax.balance
-        MenuBarState.shared.openAIQuota = cache.openAIQuota
-        MenuBarState.shared.hourlyUsage = cache.hourlyUsage
-        MenuBarState.shared.lastUpdated = cache.lastUpdated
+        MenuBarState.shared.update(with: cache)
     }
 }
 
 @MainActor
 struct MenuContent: View {
     @State private var menuState = MenuBarState.shared
+    @State private var chartOffsetHours = 0
 
     static func quotaText(_ quota: OpenAIQuota?) -> String {
         guard let percent = quota?.remainingPercent else { return "Quota unavailable" }
@@ -120,13 +143,32 @@ struct MenuContent: View {
         return "Resets " + date.formatted(.dateTime.month(.abbreviated).day().hour().minute())
     }
 
+    static func estimatedCostText(_ cost: Double) -> String {
+        String(format: "Est. $%.2f", cost)
+    }
+
     static func elapsedText(resetDate: Date?, now: Date = Date()) -> String? {
         guard let resetDate else { return nil }
         let hours = QuotaResetTimeline(resetDate: resetDate).elapsedHours(at: now)
         return String(format: "%.0fh of 168h", hours)
     }
 
+    static func previousOffset(current: Int, historyCount: Int) -> Int {
+        min(current + ChartWindow.stepHours, ChartWindow.maximumOffset(for: historyCount))
+    }
+
+    static func nextOffset(current: Int) -> Int {
+        max(0, current - ChartWindow.stepHours)
+    }
+
     var body: some View {
+        let historyCount = menuState.hourlyUsage.count
+        let newestHour = menuState.hourlyUsage.last?.hour ?? Date()
+        let chartRange = ChartWindow.range(endingAt: newestHour, offsetHours: chartOffsetHours)
+        let usageBuckets = menuState.hourlyUsage.filter { chartRange.contains($0.hour) }
+        let balanceSnapshots = menuState.deepseekBalanceHistory.filter { chartRange.contains($0.hour) }
+        let openAISnapshots = menuState.openAIQuotaHistory.filter { chartRange.contains($0.hour) }
+
         VStack(spacing: 0) {
             HStack(spacing: 8) {
                 balanceCard(title: "DeepSeek", balance: menuState.deepseekBalance) {
@@ -143,7 +185,14 @@ struct MenuContent: View {
                 NSWorkspace.shared.open(URL(string: "https://chatgpt.com/usage")!)
             }) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("OpenAI").font(.caption).foregroundColor(.secondary)
+                    HStack {
+                        Text("OpenAI").font(.caption).foregroundColor(.secondary)
+                        Spacer()
+                        Text(Self.estimatedCostText(menuState.openAIEstimatedCost))
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .monospacedDigit()
+                    }
                     Text(Self.quotaText(menuState.openAIQuota))
                         .font(.headline).fontWeight(.semibold).monospacedDigit()
                     QuotaResetBar(
@@ -163,7 +212,33 @@ struct MenuContent: View {
             .padding(.horizontal, 12)
             .padding(.top, 8)
 
-            UsageHistoryChart(buckets: menuState.hourlyUsage)
+            HStack {
+                Button {
+                    chartOffsetHours = Self.previousOffset(current: chartOffsetHours, historyCount: historyCount)
+                } label: {
+                    Image(systemName: "chevron.left")
+                }
+                .buttonStyle(.plain)
+                .disabled(chartOffsetHours == ChartWindow.maximumOffset(for: historyCount))
+
+                Spacer()
+
+                Button {
+                    chartOffsetHours = Self.nextOffset(current: chartOffsetHours)
+                } label: {
+                    Image(systemName: "chevron.right")
+                }
+                .buttonStyle(.plain)
+                .disabled(chartOffsetHours == 0)
+            }
+            .padding(.horizontal, 12)
+            .padding(.top, 8)
+
+            UsageHistoryChart(buckets: usageBuckets, xDomain: chartRange)
+                .padding(.horizontal, 12)
+                .padding(.top, 4)
+
+            RemainingQuotaChart(deepseekSnapshots: balanceSnapshots, openAISnapshots: openAISnapshots, xDomain: chartRange)
                 .padding(.horizontal, 12)
                 .padding(.top, 8)
 
@@ -179,6 +254,9 @@ struct MenuContent: View {
             .padding(.bottom, 6)
         }
         .frame(width: 220)
+        .onChange(of: menuState.hourlyUsage) { _, history in
+            chartOffsetHours = min(chartOffsetHours, ChartWindow.maximumOffset(for: history.count))
+        }
     }
 
     private static let usdToMYR: Double = 4.5
@@ -208,12 +286,11 @@ struct MenuContent: View {
     private func refreshData() {
         Task {
             let cache = await DataFetcher.refreshAll()
-            DataStore.save(cache: cache)
-            MenuBarState.shared.deepseekBalance = cache.deepseek.balance
-            MenuBarState.shared.minimaxBalance = cache.minimax.balance
-            MenuBarState.shared.openAIQuota = cache.openAIQuota
-            MenuBarState.shared.hourlyUsage = cache.hourlyUsage
-            MenuBarState.shared.lastUpdated = cache.lastUpdated
+            QuotaLedgerService.shared.recordRefresh(cache: cache)
+            await QuotaLedgerService.shared.runMonthlyReportIfDue()
+            let seeded = QuotaLedgerService.shared.seededCache(from: cache)
+            DataStore.save(cache: seeded)
+            MenuBarState.shared.update(with: seeded)
         }
     }
 }
