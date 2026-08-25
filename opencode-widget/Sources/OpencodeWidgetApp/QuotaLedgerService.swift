@@ -66,6 +66,13 @@ final class QuotaLedgerService {
             guard let percent = row.openaiPercent else { return nil }
             return OpenAIQuotaSnapshot(hour: row.hour, remainingPercent: percent)
         }
+        let hourlyUsage = rows.map { row in
+            HourlyUsageBucket(
+                hour: row.hour,
+                openAIInputTokens: Int64(row.openAIInputTokens ?? 0),
+                deepseekInputTokens: Int64(row.deepseekInputTokens ?? 0)
+            )
+        }
         return WidgetCache(
             lastUpdated: cache.lastUpdated,
             deepseek: cache.deepseek,
@@ -75,7 +82,7 @@ final class QuotaLedgerService {
             minimaxCreditFetched: cache.minimaxCreditFetched,
             dailyUsage: cache.dailyUsage,
             openAIQuota: cache.openAIQuota,
-            hourlyUsage: cache.hourlyUsage,
+            hourlyUsage: hourlyUsage,
             deepseekBalanceHistory: deepseekHistory,
             openAIQuotaHistory: openAIHistory
         )
@@ -86,8 +93,17 @@ final class QuotaLedgerService {
         let now = Date()
         let dsUSD = cache.deepseek.balance
         let oaPercent = cache.openAIQuota?.remainingPercent
-        guard dsUSD != nil || oaPercent != nil else { return }
-        ledger.record(hour: now, deepseekUSD: dsUSD, openaiPercent: oaPercent, source: sourceLabel(ds: dsUSD, oa: oaPercent))
+        let currentHour = Date(timeIntervalSince1970: floor(now.timeIntervalSince1970 / 3_600) * 3_600)
+        let hourlyTotal = OpenAIUsageCollector().hourlyTotals()?[currentHour]
+        guard dsUSD != nil || oaPercent != nil || hourlyTotal != nil else { return }
+        ledger.record(
+            hour: now,
+            deepseekUSD: dsUSD,
+            openaiPercent: oaPercent,
+            openAIInputTokens: hourlyTotal?.inputTokens,
+            openAIEstimatedCostUSD: hourlyTotal?.estimatedCostUSD,
+            source: sourceLabel(ds: dsUSD, oa: oaPercent)
+        )
         ledger.prune(retentionMonths: 12)
     }
 
