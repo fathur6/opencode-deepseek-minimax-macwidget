@@ -178,3 +178,42 @@ PASS: rebuilt 764 nodes / 1822 edges / 33 communities
 ### Remaining Risk
 
 - The injected SQLite step closure is an internal test seam for deterministic terminal-status coverage; production defaults directly to `sqlite3_step`.
+
+## Review Follow-Up 3 (2026-08-25)
+
+### Commit
+
+`3a018d0 fix: preserve unavailable Codex usage`
+
+### Files Changed
+
+- `opencode-widget/Sources/OpencodeWidgetApp/OpenAIUsageCollector.swift`
+  - Treats failure to create a Codex session-directory enumerator as source unavailability instead of accepting the existing root as readable.
+- `opencode-widget/Tests/OpencodeWidgetAppTests/OpenAIUsageCollectorTests.swift`
+  - Adds a focused existing-root regression that injects unavailable Codex session enumeration and requires `hourlyTotals()` to return `nil`.
+
+### TDD Evidence
+
+```text
+swift test --filter OpenAIUsageCollectorTests
+RED: extra argument 'codexSessionFiles' in call
+```
+
+### Verification
+
+```text
+swift test --filter OpenAIUsageCollectorTests
+PASS: 9 tests, 0 failures
+
+git diff --check
+PASS: no whitespace errors
+
+graphify update .
+PASS: rebuilt 1050 nodes / 2090 edges / 47 communities
+```
+
+### Self-Review
+
+- Confirmed Codex readability is granted only after an existing session root can be enumerated.
+- Confirmed an unavailable enumerator returns `nil` from `hourlyTotals()`, preventing a partial aggregate from reaching the ledger.
+- Confirmed regular Codex JSONL collection still iterates only `.jsonl` files and retains existing duplicate-session handling.
