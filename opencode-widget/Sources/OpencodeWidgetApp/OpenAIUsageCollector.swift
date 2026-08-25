@@ -166,17 +166,19 @@ struct OpenAIUsageCollector: Sendable {
             guard let enumerator = FileManager.default.enumerator(at: canonicalRoot, includingPropertiesForKeys: [.isRegularFileKey], options: [.skipsHiddenFiles, .skipsPackageDescendants]) else { continue }
             for case let fileURL as URL in enumerator where fileURL.pathExtension == "jsonl" {
                 guard visited.insert(fileURL.standardizedFileURL.path).inserted else { continue }
-                samples.append(contentsOf: readCodexFile(fileURL))
+                let file = readCodexFile(fileURL)
+                guard file.readable else { return ([], false) }
+                samples.append(contentsOf: file.samples)
             }
         }
         return (samples, readable)
     }
 
-    private func readCodexFile(_ url: URL) -> [OpenAIUsageSample] {
-        guard let text = try? String(contentsOf: url, encoding: .utf8) else { return [] }
+    private func readCodexFile(_ url: URL) -> SourceRead {
+        guard let text = try? String(contentsOf: url, encoding: .utf8) else { return ([], false) }
         var previousTotal: [String: Int64]?
         let fallbackSessionID = url.deletingPathExtension().lastPathComponent
-        return text.split(separator: "\n").compactMap { line in
+        let samples: [OpenAIUsageSample] = text.split(separator: "\n").compactMap { line in
             guard let object = try? JSONSerialization.jsonObject(with: Data(line.utf8)) as? [String: Any],
                   object["type"] as? String == "event_msg",
                   let payload = object["payload"] as? [String: Any],
@@ -203,6 +205,7 @@ struct OpenAIUsageCollector: Sendable {
             let sessionID = (object["session_id"] as? String) ?? (payload["session_id"] as? String) ?? fallbackSessionID
             return OpenAIUsageSample(hour: timestamp, modelID: modelID, inputTokens: values["input"] ?? 0, cachedInputTokens: values["cachedInput"] ?? 0, cacheWriteTokens: values["cacheWrite"] ?? 0, outputTokens: values["output"] ?? 0, source: .codex, sessionID: sessionID)
         }
+        return (samples, true)
     }
 
     private func tokenValues(_ values: [String: Any]) -> [String: Int64] {

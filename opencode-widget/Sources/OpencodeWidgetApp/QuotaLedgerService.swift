@@ -33,8 +33,14 @@ final class QuotaLedgerService {
     let ledger: QuotaLedger
     private let reporter: QuotaMonthlyReporter
     private let to = "fathur6@gmail.com"
+    private let now: () -> Date
+    private let hourlyTotals: () -> [Date: OpenAIHourlyTotal]?
 
-    init(ledgerPath: String? = nil) {
+    init(
+        ledgerPath: String? = nil,
+        now: @escaping () -> Date = Date.init,
+        hourlyTotals: @escaping () -> [Date: OpenAIHourlyTotal]? = { OpenAIUsageCollector().hourlyTotals() }
+    ) {
         let fm = FileManager.default
         let base = ledgerPath ?? fm.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
             .appendingPathComponent("OpencodeWidgetApp", isDirectory: true).path
@@ -46,6 +52,8 @@ final class QuotaLedgerService {
         let archiveDir = "\(base)/archive"
         self.ledger = ledger
         self.reporter = QuotaMonthlyReporter(ledger: ledger, sender: sender, to: to, now: { Date() }, archiveDir: archiveDir)
+        self.now = now
+        self.hourlyTotals = hourlyTotals
     }
 
     func begin(of cache: WidgetCache) {
@@ -90,11 +98,11 @@ final class QuotaLedgerService {
 
     func recordRefresh(cache: WidgetCache) {
         if ledger.count() == 0 { begin(of: cache) }
-        let now = Date()
+        let now = now()
         let dsUSD = cache.deepseek.balance
         let oaPercent = cache.openAIQuota?.remainingPercent
         let currentHour = Date(timeIntervalSince1970: floor(now.timeIntervalSince1970 / 3_600) * 3_600)
-        let hourlyTotal = OpenAIUsageCollector().hourlyTotals()?[currentHour]
+        let hourlyTotal = hourlyTotals()?[currentHour]
         guard dsUSD != nil || oaPercent != nil || hourlyTotal != nil else { return }
         ledger.record(
             hour: now,

@@ -33,4 +33,26 @@ final class QuotaLedgerServiceTests: XCTestCase {
         service.recordRefresh(cache: cache)
         XCTAssertGreaterThanOrEqual(service.ledger.count(), 1)
     }
+
+    func testRecordRefreshPreservesCurrentHourOpenAIUsageWhenCollectionIsUnavailable() {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("qs3-\(UUID().uuidString)")
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let path = dir.appendingPathComponent("quota.db").path
+        let now = Date(timeIntervalSince1970: 1_800_000_123)
+        let service = QuotaLedgerService(ledgerPath: path, now: { now }, hourlyTotals: { nil })
+        service.ledger.record(
+            hour: now,
+            deepseekUSD: nil,
+            openaiPercent: nil,
+            openAIInputTokens: 123,
+            openAIEstimatedCostUSD: 4.56,
+            source: "openai"
+        )
+
+        service.recordRefresh(cache: WidgetCache(deepseek: ProviderBalance(balance: 10, currency: "USD")))
+
+        let row = service.ledger.recentSnapshots(limit: 1).first
+        XCTAssertEqual(row?.openAIInputTokens, 123)
+        XCTAssertEqual(row?.openAIEstimatedCostUSD, 4.56)
+    }
 }
