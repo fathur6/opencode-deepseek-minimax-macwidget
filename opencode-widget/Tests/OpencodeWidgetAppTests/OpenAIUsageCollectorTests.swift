@@ -74,6 +74,17 @@ final class OpenAIUsageCollectorTests: XCTestCase {
         XCTAssertNil(collector.hourlyTotals())
     }
 
+    func testHourlyTotalsAreUnavailableWhenCodexSessionEnumeratorCannotBeCreated() throws {
+        let codexRoot = root.appendingPathComponent("codex")
+        try FileManager.default.createDirectory(at: codexRoot, withIntermediateDirectories: true)
+        let collector = try makeCollector(
+            codexRoots: [codexRoot],
+            codexSessionFiles: { _ in nil }
+        )
+
+        XCTAssertNil(collector.hourlyTotals())
+    }
+
     func testHourlyTotalsAreUnavailableWhenSQLiteIterationDoesNotFinish() throws {
         let sequence = StepSequence()
         let collector = try makeCollector(
@@ -94,6 +105,14 @@ final class OpenAIUsageCollectorTests: XCTestCase {
         hermesPath: String? = nil,
         codexRoots: [URL]? = nil,
         openCodeStatements: [String] = [],
+        codexSessionFiles: @escaping @Sendable (URL) -> [URL]? = { root in
+            guard let enumerator = FileManager.default.enumerator(
+                at: root,
+                includingPropertiesForKeys: [.isRegularFileKey],
+                options: [.skipsHiddenFiles, .skipsPackageDescendants]
+            ) else { return nil }
+            return enumerator.compactMap { $0 as? URL }
+        },
         databaseStep: @escaping @Sendable (OpaquePointer?) -> Int32 = sqlite3_step
     ) throws -> OpenAIUsageCollector {
         let openCode = root.appendingPathComponent("opencode.db")
@@ -111,6 +130,7 @@ final class OpenAIUsageCollectorTests: XCTestCase {
             openCodeDatabasePath: openCodePath ?? openCode.path,
             hermesDatabasePath: hermesPath ?? hermes.path,
             codexRoots: codexRoots ?? [codex],
+            codexSessionFiles: codexSessionFiles,
             databaseStep: databaseStep
         )
     }

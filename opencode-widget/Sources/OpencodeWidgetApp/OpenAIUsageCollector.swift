@@ -45,6 +45,7 @@ struct OpenAIUsageCollector: Sendable {
     let openCodeDatabasePath: String
     let hermesDatabasePath: String
     let codexRoots: [URL]
+    private let codexSessionFiles: @Sendable (URL) -> [URL]?
     private let databaseStep: @Sendable (OpaquePointer?) -> Int32
 
     init(
@@ -55,12 +56,21 @@ struct OpenAIUsageCollector: Sendable {
             URL(fileURLWithPath: "\(NSHomeDirectory())/.codex/sessions", isDirectory: true),
             URL(fileURLWithPath: "\(NSHomeDirectory())/.codex/archived_sessions", isDirectory: true)
         ],
+        codexSessionFiles: @escaping @Sendable (URL) -> [URL]? = { root in
+            guard let enumerator = FileManager.default.enumerator(
+                at: root,
+                includingPropertiesForKeys: [.isRegularFileKey],
+                options: [.skipsHiddenFiles, .skipsPackageDescendants]
+            ) else { return nil }
+            return enumerator.compactMap { $0 as? URL }
+        },
         databaseStep: @escaping @Sendable (OpaquePointer?) -> Int32 = sqlite3_step
     ) {
         self.now = now
         self.openCodeDatabasePath = openCodeDatabasePath
         self.hermesDatabasePath = hermesDatabasePath
         self.codexRoots = codexRoots
+        self.codexSessionFiles = codexSessionFiles
         self.databaseStep = databaseStep
     }
 
@@ -169,8 +179,8 @@ struct OpenAIUsageCollector: Sendable {
             var isDirectory: ObjCBool = false
             guard FileManager.default.fileExists(atPath: canonicalRoot.path, isDirectory: &isDirectory), isDirectory.boolValue else { continue }
             readable = true
-            guard let enumerator = FileManager.default.enumerator(at: canonicalRoot, includingPropertiesForKeys: [.isRegularFileKey], options: [.skipsHiddenFiles, .skipsPackageDescendants]) else { continue }
-            for case let fileURL as URL in enumerator where fileURL.pathExtension == "jsonl" {
+            guard let sessionFiles = codexSessionFiles(canonicalRoot) else { return ([], false) }
+            for fileURL in sessionFiles where fileURL.pathExtension == "jsonl" {
                 guard visited.insert(fileURL.standardizedFileURL.path).inserted else { continue }
                 let file = readCodexFile(fileURL)
                 guard file.readable else { return ([], false) }
