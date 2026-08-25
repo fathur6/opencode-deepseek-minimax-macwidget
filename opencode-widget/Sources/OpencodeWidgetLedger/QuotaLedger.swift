@@ -89,8 +89,8 @@ public final class QuotaLedger {
         INSERT INTO quota_snapshots(hour, deepseek_usd, openai_percent, deepseek_input_tokens, openai_input_tokens, openai_estimated_cost_usd, source, recorded_at)
         VALUES(?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(hour) DO UPDATE SET
-          deepseek_usd = excluded.deepseek_usd,
-          openai_percent = excluded.openai_percent,
+          deepseek_usd = COALESCE(excluded.deepseek_usd, quota_snapshots.deepseek_usd),
+          openai_percent = COALESCE(excluded.openai_percent, quota_snapshots.openai_percent),
           deepseek_input_tokens = COALESCE(excluded.deepseek_input_tokens, quota_snapshots.deepseek_input_tokens),
           openai_input_tokens = COALESCE(excluded.openai_input_tokens, quota_snapshots.openai_input_tokens),
           openai_estimated_cost_usd = COALESCE(excluded.openai_estimated_cost_usd, quota_snapshots.openai_estimated_cost_usd),
@@ -212,8 +212,8 @@ public final class QuotaLedger {
         var statement: OpaquePointer?
         guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else { return 0 }
         defer { sqlite3_finalize(statement) }
-        bindText(statement, index: 1, iso(flooredHour(start)))
-        bindText(statement, index: 2, iso(flooredHour(end)))
+        bindText(statement, index: 1, iso(start))
+        bindText(statement, index: 2, iso(end))
         return sqlite3_step(statement) == SQLITE_ROW ? sqlite3_column_double(statement, 0) : 0
     }
 

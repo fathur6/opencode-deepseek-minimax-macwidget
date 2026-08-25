@@ -21,16 +21,16 @@ final class QuotaLedgerTests: XCTestCase {
         super.tearDown()
     }
 
-    func testRecordUpsertsByHour() {
+    func testRecordUpsertPreservesUnavailableProviderBalances() {
         let hour = Date(timeIntervalSince1970: 1_800_000_000)
         ledger.record(hour: hour, deepseekUSD: 10, openaiPercent: 44, source: "both")
-        ledger.record(hour: hour, deepseekUSD: 9.5, openaiPercent: nil, source: "deepseek")
+        ledger.record(hour: hour, deepseekUSD: nil, openaiPercent: nil, source: "unknown")
 
         let rows = ledger.monthRows(month: hour)
         XCTAssertEqual(rows.count, 1)
-        XCTAssertEqual(rows[0].deepseekUSD, 9.5)
-        XCTAssertNil(rows[0].openaiPercent)
-        XCTAssertEqual(rows[0].source, "deepseek")
+        XCTAssertEqual(rows[0].deepseekUSD, 10)
+        XCTAssertEqual(rows[0].openaiPercent, 44)
+        XCTAssertEqual(rows[0].source, "unknown")
     }
 
     func testRowsRangeFiltersByMonth() {
@@ -99,11 +99,25 @@ final class QuotaLedgerTests: XCTestCase {
     }
 
     func testActiveOpenAICostIncludesOnlyQuotaWindow() {
-        let reset = Date(timeIntervalSince1970: 2_000_000_000)
+        let reset = Date(timeIntervalSince1970: 2_000_001_600)
         ledger.record(hour: reset.addingTimeInterval(-169 * 3_600), deepseekUSD: nil, openaiPercent: nil, deepseekInputTokens: nil, openAIInputTokens: 1, openAIEstimatedCostUSD: 9, source: "openai")
         ledger.record(hour: reset.addingTimeInterval(-168 * 3_600), deepseekUSD: nil, openaiPercent: nil, deepseekInputTokens: nil, openAIInputTokens: 1, openAIEstimatedCostUSD: 2, source: "openai")
         ledger.record(hour: reset.addingTimeInterval(-1 * 3_600), deepseekUSD: nil, openaiPercent: nil, deepseekInputTokens: nil, openAIInputTokens: 1, openAIEstimatedCostUSD: 3, source: "openai")
 
         XCTAssertEqual(ledger.activeOpenAIEstimatedCost(from: reset.addingTimeInterval(-168 * 3_600), through: reset), 5)
+    }
+
+    func testActiveOpenAICostUsesSuppliedInclusiveBounds() {
+        let hour = Date(timeIntervalSince1970: 1_800_000_000)
+        ledger.record(hour: hour, deepseekUSD: nil, openaiPercent: nil, openAIEstimatedCostUSD: 1, source: "openai")
+        ledger.record(hour: hour.addingTimeInterval(3_600), deepseekUSD: nil, openaiPercent: nil, openAIEstimatedCostUSD: 2, source: "openai")
+
+        XCTAssertEqual(
+            ledger.activeOpenAIEstimatedCost(
+                from: hour.addingTimeInterval(1_800),
+                through: hour.addingTimeInterval(5_400)
+            ),
+            2
+        )
     }
 }
