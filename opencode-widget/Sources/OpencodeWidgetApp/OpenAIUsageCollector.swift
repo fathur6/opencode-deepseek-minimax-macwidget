@@ -45,6 +45,7 @@ struct OpenAIUsageCollector: Sendable {
     let openCodeDatabasePath: String
     let hermesDatabasePath: String
     let codexRoots: [URL]
+    private let databaseStep: @Sendable (OpaquePointer?) -> Int32
 
     init(
         now: Date = Date(),
@@ -53,12 +54,14 @@ struct OpenAIUsageCollector: Sendable {
         codexRoots: [URL] = [
             URL(fileURLWithPath: "\(NSHomeDirectory())/.codex/sessions", isDirectory: true),
             URL(fileURLWithPath: "\(NSHomeDirectory())/.codex/archived_sessions", isDirectory: true)
-        ]
+        ],
+        databaseStep: @escaping @Sendable (OpaquePointer?) -> Int32 = sqlite3_step
     ) {
         self.now = now
         self.openCodeDatabasePath = openCodeDatabasePath
         self.hermesDatabasePath = hermesDatabasePath
         self.codexRoots = codexRoots
+        self.databaseStep = databaseStep
     }
 
     func hourlyTotals() -> [Date: OpenAIHourlyTotal]? {
@@ -136,7 +139,10 @@ struct OpenAIUsageCollector: Sendable {
         sqlite3_bind_int64(statement, 2, Int64(now.timeIntervalSince1970 * timestampDivisor))
 
         var samples: [OpenAIUsageSample] = []
-        while sqlite3_step(statement) == SQLITE_ROW {
+        var stepResult: Int32
+        repeat {
+            stepResult = databaseStep(statement)
+            guard stepResult == SQLITE_ROW else { break }
             let timestamp = Double(sqlite3_column_int64(statement, 0)) / timestampDivisor
             guard timestamp.isFinite,
                   let modelText = sqlite3_column_text(statement, 2) else { continue }
@@ -144,8 +150,8 @@ struct OpenAIUsageCollector: Sendable {
             guard tokens.allSatisfy({ $0 >= 0 }) else { continue }
             let sessionID = sqlite3_column_text(statement, 1).map { String(cString: $0) } ?? ""
             samples.append(OpenAIUsageSample(hour: Date(timeIntervalSince1970: timestamp), modelID: String(cString: modelText), inputTokens: tokens[0], cachedInputTokens: tokens[1], cacheWriteTokens: tokens[2], outputTokens: tokens[3], source: source, sessionID: sessionID))
-        }
-        return (samples, true)
+        } while stepResult == SQLITE_ROW
+        return (samples, stepResult == SQLITE_DONE)
     }
 
     private var cutoff: Date {

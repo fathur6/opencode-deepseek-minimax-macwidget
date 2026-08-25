@@ -130,14 +130,6 @@ enum DataFetcher {
         openAIAuthPath: String = "\(NSHomeDirectory())/.codex/auth.json",
         cacheSuiteName: String = DataStore.defaultSuiteName,
         cacheFileName: String = DataStore.defaultFileName,
-        historyNow: Date = Date(),
-        openCodeHistoryDBPath: String? = nil,
-        hermesHistoryDBPath: String = "\(NSHomeDirectory())/.hermes/state.db",
-        codexHistoryRoots: [URL] = [
-            URL(fileURLWithPath: "\(NSHomeDirectory())/.codex/sessions", isDirectory: true),
-            URL(fileURLWithPath: "\(NSHomeDirectory())/.codex/archived_sessions", isDirectory: true)
-        ],
-        historyFetcher: (@Sendable () -> UsageHistoryResult)? = nil,
         openAIQuotaFetcher: @escaping @Sendable (String, URLSession, URL) async -> OpenAIQuota? = { authPath, session, endpoint in
             await OpenAIQuotaFetcher.fetch(authPath: authPath, session: session, endpoint: endpoint)
         }
@@ -145,16 +137,6 @@ enum DataFetcher {
         let usage = queryUsageFromDB(dbPath: dbPath)
         let previousCache = DataStore.load(suiteName: cacheSuiteName, fileName: cacheFileName)
         let previousQuota = previousCache?.openAIQuota
-        let resolvedOpenCodeHistoryDBPath = openCodeHistoryDBPath ?? dbPath
-        let historyTask = Task.detached {
-            if let historyFetcher { return historyFetcher() }
-            return UsageHistoryFetcher(
-                now: historyNow,
-                openCodeDatabasePath: resolvedOpenCodeHistoryDBPath,
-                hermesDatabasePath: hermesHistoryDBPath,
-                codexRoots: codexHistoryRoots
-            ).fetch()
-        }
         let fetchedOpenAIQuotaTask = Task {
             await openAIQuotaFetcher(openAIAuthPath, session, openAIUsageURL)
         }
@@ -162,7 +144,6 @@ enum DataFetcher {
         guard let creds = AuthReader.readCredentials(authPath: authPath) else {
             let miniCredit = readSavedMiniMaxCredit()
             let openAIQuota = await fetchedOpenAIQuotaTask.value ?? previousQuota
-            let history = await historyTask.value
             return WidgetCache(
                 lastUpdated: Date(),
                 deepseek: ProviderBalance(balance: nil, currency: "USD"),
@@ -171,9 +152,9 @@ enum DataFetcher {
                 minimaxCreditFetched: miniCredit != nil ? Date() : nil,
                 dailyUsage: usage,
                 openAIQuota: openAIQuota,
-                hourlyUsage: history.anySourceReadable ? history.buckets : previousCache?.hourlyUsage ?? [],
-                deepseekBalanceHistory: previousCache?.deepseekBalanceHistory ?? [],
-                openAIQuotaHistory: previousCache?.openAIQuotaHistory ?? []
+                hourlyUsage: [],
+                deepseekBalanceHistory: [],
+                openAIQuotaHistory: []
             )
         }
 
@@ -184,18 +165,7 @@ enum DataFetcher {
         async let mmUsage = fetchMiniMaxUsage(apiKey: mk, session: session)
 
         let (deepseekBalance, minimaxCredit, minimaxUsage) = await (dsBalance, mmCredit, mmUsage)
-        let deepseekBalanceHistory = DeepSeekBalanceHistory.appending(
-            balanceUSD: deepseekBalance,
-            at: historyNow,
-            to: previousCache?.deepseekBalanceHistory ?? []
-        )
         let openAIQuota = await fetchedOpenAIQuotaTask.value
-        let openAIQuotaHistory = OpenAIQuotaHistory.appending(
-            remainingPercent: openAIQuota?.remainingPercent,
-            at: historyNow,
-            to: previousCache?.openAIQuotaHistory ?? []
-        )
-        let history = await historyTask.value
 
         let minimaxCreditVal: Double?
         if let credit = minimaxCredit {
@@ -215,9 +185,9 @@ enum DataFetcher {
             minimaxCreditFetched: minimaxCredit != nil ? Date() : nil,
             dailyUsage: usage,
             openAIQuota: openAIQuota ?? previousQuota,
-            hourlyUsage: history.anySourceReadable ? history.buckets : previousCache?.hourlyUsage ?? [],
-            deepseekBalanceHistory: deepseekBalanceHistory,
-            openAIQuotaHistory: openAIQuotaHistory
+            hourlyUsage: [],
+            deepseekBalanceHistory: [],
+            openAIQuotaHistory: []
         )
     }
 }
