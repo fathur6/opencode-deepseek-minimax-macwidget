@@ -119,6 +119,15 @@ final class QuotaLedgerService {
         _ = await reporter.runIfDue()
     }
 
+    static func costWindowStart(resetDate: Date) -> Date {
+        resetDate.addingTimeInterval(-168 * 3_600)
+    }
+
+    func activeOpenAIEstimatedCost(resetDate: Date?, now: Date = Date()) -> Double {
+        guard let resetDate else { return 0 }
+        return ledger.activeOpenAIEstimatedCost(from: Self.costWindowStart(resetDate: resetDate), through: now)
+    }
+
     private func sourceLabel(ds: Double?, oa: Double?) -> String {
         switch (ds, oa) {
         case (.some, .some): return "both"

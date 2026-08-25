@@ -11,6 +11,7 @@ class MenuBarState {
     var deepseekBalance: Double?
     var minimaxBalance: Double?
     var openAIQuota: OpenAIQuota?
+    var openAIEstimatedCost = 0.0
     var hourlyUsage: [HourlyUsageBucket] = []
     var deepseekBalanceHistory: [DeepSeekBalanceSnapshot] = []
     var openAIQuotaHistory: [OpenAIQuotaSnapshot] = []
@@ -20,6 +21,7 @@ class MenuBarState {
         deepseekBalance = cache.deepseek.balance
         minimaxBalance = cache.minimax.balance
         openAIQuota = cache.openAIQuota
+        openAIEstimatedCost = QuotaLedgerService.shared.activeOpenAIEstimatedCost(resetDate: cache.openAIQuota?.resetDate)
         hourlyUsage = cache.hourlyUsage
         deepseekBalanceHistory = cache.deepseekBalanceHistory
         openAIQuotaHistory = cache.openAIQuotaHistory
@@ -132,6 +134,10 @@ struct MenuContent: View {
         return "Resets " + date.formatted(.dateTime.month(.abbreviated).day().hour().minute())
     }
 
+    static func estimatedCostText(_ cost: Double) -> String {
+        String(format: "Est. $%.2f", cost)
+    }
+
     static func elapsedText(resetDate: Date?, now: Date = Date()) -> String? {
         guard let resetDate else { return nil }
         let hours = QuotaResetTimeline(resetDate: resetDate).elapsedHours(at: now)
@@ -170,7 +176,14 @@ struct MenuContent: View {
                 NSWorkspace.shared.open(URL(string: "https://chatgpt.com/usage")!)
             }) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("OpenAI").font(.caption).foregroundColor(.secondary)
+                    HStack {
+                        Text("OpenAI").font(.caption).foregroundColor(.secondary)
+                        Spacer()
+                        Text(Self.estimatedCostText(menuState.openAIEstimatedCost))
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .monospacedDigit()
+                    }
                     Text(Self.quotaText(menuState.openAIQuota))
                         .font(.headline).fontWeight(.semibold).monospacedDigit()
                     QuotaResetBar(

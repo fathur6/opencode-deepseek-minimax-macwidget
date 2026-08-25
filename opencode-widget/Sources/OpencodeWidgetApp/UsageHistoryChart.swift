@@ -55,7 +55,7 @@ struct UsageHistoryChart: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
-                Text("Usage · 168h")
+                Text("Usage")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Spacer(minLength: 4)

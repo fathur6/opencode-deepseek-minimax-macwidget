@@ -21,6 +21,11 @@ final class MenuContentTests: XCTestCase {
         XCTAssertEqual(MenuContent.resetText(nil), "")
     }
 
+    func testEstimatedCostTextUsesEstimateLabel() {
+        XCTAssertEqual(MenuContent.estimatedCostText(12.345), "Est. $12.35")
+        XCTAssertEqual(MenuContent.estimatedCostText(0), "Est. $0.00")
+    }
+
     func testMenuBarStateUpdateKeepsDeepSeekBalanceHistory() {
         let state = MenuBarState()
         let history = [DeepSeekBalanceSnapshot(hour: Date(timeIntervalSince1970: 3_600), remainingRM: 45)]

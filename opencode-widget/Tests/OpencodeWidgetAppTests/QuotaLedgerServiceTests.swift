@@ -55,4 +55,12 @@ final class QuotaLedgerServiceTests: XCTestCase {
         XCTAssertEqual(row?.openAIInputTokens, 123)
         XCTAssertEqual(row?.openAIEstimatedCostUSD, 4.56)
     }
+
+    func testCostWindowStartsOneHundredSixtyEightHoursBeforeReset() {
+        let reset = Date(timeIntervalSince1970: 2_000_000_000)
+        XCTAssertEqual(
+            QuotaLedgerService.costWindowStart(resetDate: reset),
+            reset.addingTimeInterval(-168 * 3_600)
+        )
+    }
 }
