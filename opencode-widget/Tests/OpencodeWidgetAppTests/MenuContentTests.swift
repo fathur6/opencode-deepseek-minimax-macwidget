@@ -26,6 +26,22 @@ final class MenuContentTests: XCTestCase {
         XCTAssertEqual(MenuContent.estimatedCostText(0), "Est. $0.00")
     }
 
+    func testMenuBarStateRetainsEstimateWhenResetDateMissing() {
+        let state = MenuBarState(estimatedCost: { _ in 42.0 })
+        state.update(with: WidgetCache(openAIQuota: OpenAIQuota(remainingPercent: 50, resetDate: Date(timeIntervalSince1970: 2_000_000_000))))
+        XCTAssertEqual(state.openAIEstimatedCost, 42.0)
+
+        state.update(with: WidgetCache(openAIQuota: OpenAIQuota(remainingPercent: 50, resetDate: nil)))
+        XCTAssertEqual(state.openAIEstimatedCost, 42.0)
+    }
+
+    func testMenuBarStateShowsZeroEstimateWhenNeverComputed() {
+        let state = MenuBarState()
+        state.update(with: WidgetCache(openAIQuota: OpenAIQuota(remainingPercent: 50, resetDate: nil)))
+        XCTAssertEqual(state.openAIEstimatedCost, 0.0)
+        XCTAssertEqual(MenuContent.estimatedCostText(state.openAIEstimatedCost), "Est. $0.00")
+    }
+
     func testMenuBarStateUpdateKeepsDeepSeekBalanceHistory() {
         let state = MenuBarState()
         let history = [DeepSeekBalanceSnapshot(hour: Date(timeIntervalSince1970: 3_600), remainingRM: 45)]

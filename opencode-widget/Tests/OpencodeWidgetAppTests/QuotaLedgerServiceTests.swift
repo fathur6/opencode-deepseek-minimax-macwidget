@@ -63,4 +63,53 @@ final class QuotaLedgerServiceTests: XCTestCase {
             reset.addingTimeInterval(-168 * 3_600)
         )
     }
+
+    func testRecordRefreshPersistsDeepSeekUsageIntoSeededUsageChart() {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("qs4-\(UUID().uuidString)")
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let path = dir.appendingPathComponent("quota.db").path
+        let now = Date(timeIntervalSince1970: 1_800_000_123)
+        let currentHour = Date(timeIntervalSince1970: floor(now.timeIntervalSince1970 / 3_600) * 3_600)
+        let service = QuotaLedgerService(
+            ledgerPath: path,
+            now: { now },
+            hourlyTotals: { [currentHour: OpenAIHourlyTotal(inputTokens: 55, estimatedCostUSD: 0.75)] },
+            deepseekHourlyTotals: { [currentHour: DeepSeekHourlyTotal(inputTokens: 777)] }
+        )
+
+        service.recordRefresh(cache: WidgetCache(deepseek: ProviderBalance(balance: 10, currency: "USD")))
+
+        let row = service.ledger.recentSnapshots(limit: 1).first
+        XCTAssertEqual(row?.deepseekInputTokens, 777)
+        XCTAssertEqual(row?.openAIInputTokens, 55)
+
+        let usageBuckets = service.seededCache(from: WidgetCache()).hourlyUsage
+        XCTAssertEqual(usageBuckets.last?.deepseekInputTokens, 777)
+
+        let firstHour = usageBuckets.first?.hour ?? now
+        let lastHour = usageBuckets.last?.hour ?? now
+        let projection = UsageHistoryChartProjection(buckets: usageBuckets, xDomain: firstHour...lastHour)
+        let deepseekSeries = projection.series.first { $0.provider == .deepseek }
+        XCTAssertNotNil(deepseekSeries)
+        XCTAssertTrue(deepseekSeries?.points.contains { $0.tokens > 0 } ?? false)
+    }
+
+    func testRecordRefreshPreservesDeepSeekUsageWhenCollectionUnavailable() {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("qs5-\(UUID().uuidString)")
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let path = dir.appendingPathComponent("quota.db").path
+        let now = Date(timeIntervalSince1970: 1_800_000_123)
+        let service = QuotaLedgerService(ledgerPath: path, now: { now }, hourlyTotals: { nil }, deepseekHourlyTotals: { nil })
+        service.ledger.record(
+            hour: now,
+            deepseekUSD: nil,
+            openaiPercent: nil,
+            deepseekInputTokens: 321,
+            source: "usage"
+        )
+
+        service.recordRefresh(cache: WidgetCache(deepseek: ProviderBalance(balance: 10, currency: "USD")))
+
+        XCTAssertEqual(service.ledger.recentSnapshots(limit: 1).first?.deepseekInputTokens, 321)
+    }
 }

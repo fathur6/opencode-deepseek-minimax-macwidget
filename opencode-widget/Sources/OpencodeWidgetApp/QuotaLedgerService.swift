@@ -35,11 +35,13 @@ final class QuotaLedgerService {
     private let to = "fathur6@gmail.com"
     private let now: () -> Date
     private let hourlyTotals: () -> [Date: OpenAIHourlyTotal]?
+    private let deepseekHourlyTotals: () -> [Date: DeepSeekHourlyTotal]?
 
     init(
         ledgerPath: String? = nil,
         now: @escaping () -> Date = Date.init,
-        hourlyTotals: @escaping () -> [Date: OpenAIHourlyTotal]? = { OpenAIUsageCollector().hourlyTotals() }
+        hourlyTotals: @escaping () -> [Date: OpenAIHourlyTotal]? = { OpenAIUsageCollector().hourlyTotals() },
+        deepseekHourlyTotals: @escaping () -> [Date: DeepSeekHourlyTotal]? = { DeepSeekUsageCollector().hourlyTotals() }
     ) {
         let fm = FileManager.default
         let base = ledgerPath ?? fm.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
@@ -54,6 +56,7 @@ final class QuotaLedgerService {
         self.reporter = QuotaMonthlyReporter(ledger: ledger, sender: sender, to: to, now: { Date() }, archiveDir: archiveDir)
         self.now = now
         self.hourlyTotals = hourlyTotals
+        self.deepseekHourlyTotals = deepseekHourlyTotals
     }
 
     func begin(of cache: WidgetCache) {
@@ -74,13 +77,7 @@ final class QuotaLedgerService {
             guard let percent = row.openaiPercent else { return nil }
             return OpenAIQuotaSnapshot(hour: row.hour, remainingPercent: percent)
         }
-        let hourlyUsage = rows.map { row in
-            HourlyUsageBucket(
-                hour: row.hour,
-                openAIInputTokens: Int64(row.openAIInputTokens ?? 0),
-                deepseekInputTokens: Int64(row.deepseekInputTokens ?? 0)
-            )
-        }
+        let hourlyUsage = Self.bucketize(rows: rows, limit: limit)
         return WidgetCache(
             lastUpdated: cache.lastUpdated,
             deepseek: cache.deepseek,
@@ -103,11 +100,13 @@ final class QuotaLedgerService {
         let oaPercent = cache.openAIQuota?.remainingPercent
         let currentHour = Date(timeIntervalSince1970: floor(now.timeIntervalSince1970 / 3_600) * 3_600)
         let hourlyTotal = hourlyTotals()?[currentHour]
-        guard dsUSD != nil || oaPercent != nil || hourlyTotal != nil else { return }
+        let dsHourly = deepseekHourlyTotals()?[currentHour]
+        guard dsUSD != nil || oaPercent != nil || hourlyTotal != nil || dsHourly != nil else { return }
         ledger.record(
             hour: now,
             deepseekUSD: dsUSD,
             openaiPercent: oaPercent,
+            deepseekInputTokens: dsHourly?.inputTokens,
             openAIInputTokens: hourlyTotal?.inputTokens,
             openAIEstimatedCostUSD: hourlyTotal?.estimatedCostUSD,
             source: sourceLabel(ds: dsUSD, oa: oaPercent)
@@ -133,7 +132,40 @@ final class QuotaLedgerService {
         case (.some, .some): return "both"
         case (.some, nil): return "deepseek"
         case (nil, .some): return "openai"
-        case (nil, nil): return ""
+        case (nil, nil): return "usage"
+        }
+    }
+
+    /// Builds the Usage chart's contiguous hourly buckets from ledger rows,
+    /// reproducing the trailing-mean smoothing the prior fetcher path produced.
+    /// Missing hours are filled with zero-token buckets so the chart remains a
+    /// fixed window ending at the newest recorded hour.
+    private static func bucketize(rows: [QuotaSnapshotRow], limit: Int) -> [HourlyUsageBucket] {
+        guard let newest = rows.last?.hour else { return [] }
+        let endHour = Date(timeIntervalSince1970: floor(newest.timeIntervalSince1970 / 3_600) * 3_600)
+        let bucketCount = max(1, limit)
+        let firstHour = endHour.addingTimeInterval(-Double(bucketCount - 1) * 3_600)
+        var openAI = Array(repeating: Int64(0), count: bucketCount)
+        var deepseek = Array(repeating: Int64(0), count: bucketCount)
+        for row in rows {
+            let hour = Date(timeIntervalSince1970: floor(row.hour.timeIntervalSince1970 / 3_600) * 3_600)
+            let index = Int((hour.timeIntervalSince1970 - firstHour.timeIntervalSince1970) / 3_600)
+            guard (0..<bucketCount).contains(index) else { continue }
+            openAI[index] = Int64(row.openAIInputTokens ?? 0)
+            deepseek[index] = Int64(row.deepseekInputTokens ?? 0)
+        }
+        return (0..<bucketCount).map { index in
+            let start = max(0, index - 2)
+            let count = Double(index - start + 1)
+            let smoothedOpenAI = Double(openAI[start...index].reduce(0, +)) / count
+            let smoothedDeepseek = Double(deepseek[start...index].reduce(0, +)) / count
+            return HourlyUsageBucket(
+                hour: Date(timeIntervalSince1970: firstHour.timeIntervalSince1970 + Double(index) * 3_600),
+                openAIInputTokens: openAI[index],
+                deepseekInputTokens: deepseek[index],
+                smoothedOpenAIInputTokens: smoothedOpenAI,
+                smoothedDeepseekInputTokens: smoothedDeepseek
+            )
         }
     }
 }

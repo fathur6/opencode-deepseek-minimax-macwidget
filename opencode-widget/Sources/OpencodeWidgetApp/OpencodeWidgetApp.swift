@@ -16,12 +16,21 @@ class MenuBarState {
     var deepseekBalanceHistory: [DeepSeekBalanceSnapshot] = []
     var openAIQuotaHistory: [OpenAIQuotaSnapshot] = []
     var lastUpdated: Date?
+    private let estimatedCost: @MainActor (Date) -> Double
+
+    init(estimatedCost: @escaping @MainActor (Date) -> Double = { resetDate in
+        QuotaLedgerService.shared.activeOpenAIEstimatedCost(resetDate: resetDate)
+    }) {
+        self.estimatedCost = estimatedCost
+    }
 
     func update(with cache: WidgetCache) {
         deepseekBalance = cache.deepseek.balance
         minimaxBalance = cache.minimax.balance
         openAIQuota = cache.openAIQuota
-        openAIEstimatedCost = QuotaLedgerService.shared.activeOpenAIEstimatedCost(resetDate: cache.openAIQuota?.resetDate)
+        if let resetDate = cache.openAIQuota?.resetDate {
+            openAIEstimatedCost = estimatedCost(resetDate)
+        }
         hourlyUsage = cache.hourlyUsage
         deepseekBalanceHistory = cache.deepseekBalanceHistory
         openAIQuotaHistory = cache.openAIQuotaHistory

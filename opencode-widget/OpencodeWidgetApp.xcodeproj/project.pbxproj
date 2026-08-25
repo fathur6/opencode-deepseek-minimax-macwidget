@@ -14,6 +14,7 @@
 		56E338E3EEB1E303883F6A7E /* UsageHistoryChart.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E00851A8A0E864B3CA65306 /* UsageHistoryChart.swift */; };
 		6DCAA42AF8C20B9FF53AC509 /* Resources in Resources */ = {isa = PBXBuildFile; fileRef = 51F49427C2E704920BB39BC6 /* Resources */; };
 		75040126C34521ADF64424E2 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D411F9C4A2DCADC9505ECCB /* Models.swift */; };
+		77208FF5C1484172434F8650 /* DeepSeekUsageCollector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 219662771A29BCB469AD2543 /* DeepSeekUsageCollector.swift */; };
 		7B4D1F46BEC7BD1429639AFB /* OpenAIUsageCollector.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0F26C5214DD65B6A022CB5E /* OpenAIUsageCollector.swift */; };
 		80E136D28F9E4EA3EFBD33ED /* AuthReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F74B560C20096D25F2577DB /* AuthReader.swift */; };
 		84351CF63C07C3F339734BE3 /* OpencodeWidgetApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8D98E2BDD07CB050712D068 /* OpencodeWidgetApp.swift */; };
@@ -33,6 +34,7 @@
 		12DC161720455DF4EC7AA3EF /* AppIcon.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = AppIcon.icns; sourceTree = "<group>"; };
 		19E8F206D00F9FF5F8046316 /* QuotaResetBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuotaResetBar.swift; sourceTree = "<group>"; };
 		1D0425B2060EF56D0B385252 /* QuotaMonthlyReporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuotaMonthlyReporter.swift; sourceTree = "<group>"; };
+		219662771A29BCB469AD2543 /* DeepSeekUsageCollector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeepSeekUsageCollector.swift; sourceTree = "<group>"; };
 		51F49427C2E704920BB39BC6 /* Resources */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Resources; path = OpencodeWidgetApp/Resources; sourceTree = SOURCE_ROOT; };
 		5D411F9C4A2DCADC9505ECCB /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
 		6E00851A8A0E864B3CA65306 /* UsageHistoryChart.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageHistoryChart.swift; sourceTree = "<group>"; };
@@ -57,6 +59,7 @@
 				D49D22C70D4C9FA58866CDF4 /* ChartWindow.swift */,
 				711320B0D3258720311ED9F3 /* DataFetcher.swift */,
 				BD25B4F10876E303DB626E74 /* DeepSeekRemainingChart.swift */,
+				219662771A29BCB469AD2543 /* DeepSeekUsageCollector.swift */,
 				FC128F7F9E1CBA252DDF54E4 /* OpenAIQuotaFetcher.swift */,
 				D0F26C5214DD65B6A022CB5E /* OpenAIUsageCollector.swift */,
 				D8D98E2BDD07CB050712D068 /* OpencodeWidgetApp.swift */,
@@ -204,6 +207,7 @@
 				F107D2E927D2FD958357A57B /* DataFetcher.swift in Sources */,
 				D3C4003C82352CDD5F4E476D /* DataStore.swift in Sources */,
 				241926188A6E505F83C4EE7B /* DeepSeekRemainingChart.swift in Sources */,
+				77208FF5C1484172434F8650 /* DeepSeekUsageCollector.swift in Sources */,
 				75040126C34521ADF64424E2 /* Models.swift in Sources */,
 				B8D49EE8A1706B2E80260EA3 /* OpenAIQuotaFetcher.swift in Sources */,
 				7B4D1F46BEC7BD1429639AFB /* OpenAIUsageCollector.swift in Sources */,
