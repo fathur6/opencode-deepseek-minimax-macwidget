@@ -1,4 +1,5 @@
 .build/
+opencode-widget/build/
 .DS_Store
 .superpowers/
 *.dmg

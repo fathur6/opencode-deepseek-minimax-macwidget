@@ -14,6 +14,10 @@ macOS menu bar app that tracks DeepSeek and MiniMax API usage in real time. Show
 - Manual credit entry with save/cancel
 - 15-minute auto-refresh
 - B&W monochrome design
+- DeepSeek remaining history: a 168-hour view with up to 30 days of local hourly snapshots. Green bars are top-ups, gray bars are balance reductions, and left/right controls move both charts together by one day.
+- Remaining Quota: a scrollable 168-hour view with up to 30 days of local hourly snapshots. Blue is the DeepSeek balance in USD (left axis); green is the OpenAI remaining percent (right axis, 0/50/100%).
+- Durable 12-month ledger: every hourly quota snapshot is stored in a local SQLite database and survives app rebuilds and restarts. The Quota chart history is seeded from this ledger each refresh.
+- Month-end report: on the last calendar day of each month, a summary plus the month's snapshot data is emailed and archived locally.
 
 ## Example
 
@@ -32,6 +36,23 @@ The expanded version adds a ChatGPT Plus quota card below the DeepSeek and MiniM
 ![DeepSeek, MiniMax, and ChatGPT Plus macOS menu bar widget](https://i.postimg.cc/76TLWVN8/Screenshot-2026-07-16-at-9-34-59-PM.png)
 
 *Example of the DeepSeek + MiniMax + ChatGPT Plus widget layout.*
+
+### Latest Iteration: Usage + Remaining Quota Charts
+
+The current widget adds two navigable charts below the balance cards.
+
+The **Input usage** chart is a 168-hour smoothed input-token chart showing
+OpenAI in green and DeepSeek in blue, with calendar dates and month labels on
+the x-axis.
+
+The **Quota** chart plots the DeepSeek balance in USD (blue, left axis) and
+the OpenAI remaining percent (green, right axis) on a shared 168-hour window.
+Local hourly snapshots are retained for up to 30 days, and the left/right
+controls move both charts together by one day.
+
+![OpenCode widget with usage and remaining quota charts](https://i.postimg.cc/JhBRcjhx/Opencode-Widget-Quota-Usage.png)
+
+*Latest iteration with OpenAI quota, provider balances, the two-line usage chart, and the dual-axis remaining quota chart.*
 
 ## API Approach
 

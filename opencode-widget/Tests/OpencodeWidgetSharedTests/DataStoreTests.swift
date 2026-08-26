@@ -2,6 +2,15 @@ import XCTest
 @testable import OpencodeWidgetShared
 
 final class DataStoreTests: XCTestCase {
+
+    func testDefaultStoreHasLocalFallbackWithoutAppGroupEntitlement() {
+        guard let url = DataStore.sharedContainerURL() else {
+            return XCTFail("Default cache URL should always resolve")
+        }
+        var isDirectory: ObjCBool = false
+        XCTAssertTrue(FileManager.default.fileExists(atPath: url.deletingLastPathComponent().path, isDirectory: &isDirectory))
+        XCTAssertTrue(isDirectory.boolValue)
+    }
     var tempDir: URL!
 
     override func setUp() {

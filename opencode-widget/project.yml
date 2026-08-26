@@ -11,6 +11,7 @@ targets:
     sources:
       - Sources/OpencodeWidgetApp
       - Sources/OpencodeWidgetShared
+      - Sources/OpencodeWidgetLedger
       - path: OpencodeWidgetApp/Resources
         type: folder
       - path: OpencodeWidgetApp/AppIcon.icns
@@ -20,10 +21,9 @@ targets:
       path: OpencodeWidgetApp/Info.plist
       properties:
         CFBundleIconFile: AppIcon
-        LSUIElement: false
+        LSUIElement: true
     entitlements:
       path: OpencodeWidgetApp/Entitlements.plist
     settings:
       PRODUCT_BUNDLE_IDENTIFIER: com.opencode.widget.app
       CODE_SIGN_STYLE: Automatic
-

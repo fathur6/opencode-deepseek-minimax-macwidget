@@ -39,6 +39,8 @@ class MockURLProtocol: URLProtocol {
 final class DataFetcherTests: XCTestCase {
     var tempDBPath: String!
     var tempAuthPath: String!
+    var tempCachePath: String!
+    var originalWidgetDefaults: [String: Any]?
 
     override func setUp() {
         super.setUp()
@@ -46,8 +48,14 @@ final class DataFetcherTests: XCTestCase {
         let id = UUID().uuidString
         tempDBPath = tmp.appendingPathComponent("testdb-\(id).db").path
         tempAuthPath = tmp.appendingPathComponent("testauth-\(id).json").path
+        tempCachePath = tmp.appendingPathComponent("testcache-\(id)").path
         try? FileManager.default.removeItem(atPath: tempDBPath)
         try? FileManager.default.removeItem(atPath: tempAuthPath)
+        try? FileManager.default.removeItem(atPath: tempCachePath)
+        let defaults = UserDefaults(suiteName: "group.com.opencode.widget")
+        originalWidgetDefaults = defaults?.persistentDomain(forName: "group.com.opencode.widget")
+        defaults?.removeObject(forKey: "minimaxBalance")
+        defaults?.removeObject(forKey: "minimaxCredit")
         MockURLProtocol.responses = [:]
         MockURLProtocol.defaultData = nil
         MockURLProtocol.defaultError = nil
@@ -57,8 +65,17 @@ final class DataFetcherTests: XCTestCase {
     override func tearDown() {
         try? FileManager.default.removeItem(atPath: tempDBPath)
         try? FileManager.default.removeItem(atPath: tempAuthPath)
+        try? FileManager.default.removeItem(atPath: tempCachePath)
+        let defaults = UserDefaults(suiteName: "group.com.opencode.widget")
+        if let originalWidgetDefaults {
+            defaults?.setPersistentDomain(originalWidgetDefaults, forName: "group.com.opencode.widget")
+        } else {
+            defaults?.removePersistentDomain(forName: "group.com.opencode.widget")
+        }
         tempDBPath = nil
         tempAuthPath = nil
+        tempCachePath = nil
+        originalWidgetDefaults = nil
         MockURLProtocol.responses = [:]
         MockURLProtocol.defaultData = nil
         MockURLProtocol.defaultError = nil
@@ -303,7 +320,64 @@ final class DataFetcherTests: XCTestCase {
         XCTAssertTrue(cache.dailyUsage.isEmpty)
     }
 
+    func testRefreshAllUsesFetchedOpenAIQuota() async throws {
+        let authJSON = "{\"deepseek\": {\"key\": \"ds-test-key\"}, \"minimax\": {\"key\": \"mm-test-key\"}}"
+        try authJSON.write(toFile: tempAuthPath, atomically: true, encoding: .utf8)
+        let expected = OpenAIQuota(remainingPercent: 97, resetDate: Date(timeIntervalSince1970: 0))
+
+        let cache = await DataFetcher.refreshAll(
+            dbPath: tempDBPath,
+            authPath: tempAuthPath,
+            openAIAuthPath: "/tmp/test-codex-auth.json",
+            cacheSuiteName: tempCachePath,
+            openAIQuotaFetcher: { _, _, _ in expected }
+        )
+
+        XCTAssertEqual(cache.openAIQuota, expected)
+    }
+
+    func testRefreshAllPreservesCachedOpenAIQuotaWhenFetchFails() async throws {
+        let expected = OpenAIQuota(remainingPercent: 97, resetDate: Date(timeIntervalSince1970: 0))
+        DataStore.save(cache: WidgetCache(openAIQuota: expected), suiteName: tempCachePath)
+
+        let cache = await DataFetcher.refreshAll(
+            dbPath: tempDBPath,
+            authPath: tempAuthPath,
+            openAIAuthPath: "/tmp/test-codex-auth.json",
+            cacheSuiteName: tempCachePath,
+            openAIQuotaFetcher: { _, _, _ in nil }
+        )
+
+        XCTAssertEqual(cache.openAIQuota, expected)
+    }
+
+    func testRefreshAllDoesNotPublishChartHistoryBeforeLedgerSeeding() async throws {
+        let cachedHour = Date(timeIntervalSince1970: 1_800_000_000)
+        DataStore.save(cache: WidgetCache(
+            hourlyUsage: [HourlyUsageBucket(hour: cachedHour, openAIInputTokens: 7)],
+            deepseekBalanceHistory: [DeepSeekBalanceSnapshot(hour: cachedHour, remainingRM: 45)],
+            openAIQuotaHistory: [OpenAIQuotaSnapshot(hour: cachedHour, remainingPercent: 40)]
+        ), suiteName: tempCachePath)
+
+        let cache = await DataFetcher.refreshAll(
+            dbPath: tempDBPath,
+            authPath: tempAuthPath,
+            cacheSuiteName: tempCachePath,
+            openAIQuotaFetcher: { _, _, _ in nil }
+        )
+
+        XCTAssertTrue(cache.hourlyUsage.isEmpty)
+        XCTAssertTrue(cache.deepseekBalanceHistory.isEmpty)
+        XCTAssertTrue(cache.openAIQuotaHistory.isEmpty)
+    }
+
     // MARK: - Helpers
+
+    private func makeSession() -> URLSession {
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [MockURLProtocol.self]
+        return URLSession(configuration: config)
+    }
 
     private func createDB() {
         var db: OpaquePointer?

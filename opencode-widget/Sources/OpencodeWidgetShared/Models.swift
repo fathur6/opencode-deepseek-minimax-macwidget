@@ -100,6 +100,136 @@ public struct ModelUsageRow: Codable, Identifiable, Equatable {
     }
 }
 
+public struct OpenAIQuota: Codable, Equatable, Sendable {
+    public var remainingPercent: Double?
+    public var resetDate: Date?
+
+    public init(remainingPercent: Double? = nil, resetDate: Date? = nil) {
+        self.remainingPercent = remainingPercent
+        self.resetDate = resetDate
+    }
+}
+
+public struct HourlyUsageBucket: Codable, Equatable, Sendable, Identifiable {
+    public var id: Date { hour }
+    public let hour: Date
+    public let openAIInputTokens: Int64
+    public let deepseekInputTokens: Int64
+    public let smoothedOpenAIInputTokens: Double
+    public let smoothedDeepseekInputTokens: Double
+
+    public init(
+        hour: Date,
+        openAIInputTokens: Int64 = 0,
+        deepseekInputTokens: Int64 = 0,
+        smoothedOpenAIInputTokens: Double? = nil,
+        smoothedDeepseekInputTokens: Double? = nil
+    ) {
+        self.hour = hour
+        self.openAIInputTokens = openAIInputTokens
+        self.deepseekInputTokens = deepseekInputTokens
+        self.smoothedOpenAIInputTokens = smoothedOpenAIInputTokens ?? Double(openAIInputTokens)
+        self.smoothedDeepseekInputTokens = smoothedDeepseekInputTokens ?? Double(deepseekInputTokens)
+    }
+}
+
+/// Pure math for the 168-hour reset-cycle timeline. Marker position =
+/// elapsed hours in the cycle = `cycleHours − rounded remaining hours`,
+/// expressed as a fraction 0...1 of the bar width. SwiftUI-free so it is
+/// unit-testable in the shared layer.
+public struct QuotaResetTimeline: Sendable, Equatable {
+    public static let cycleHours: Double = 168
+
+    public let resetDate: Date
+
+    public init(resetDate: Date) {
+        self.resetDate = resetDate
+    }
+
+    /// Whole hours remaining until reset (clamped ≥ 0; 0 after reset).
+    public func remainingHours(at now: Date = Date()) -> Double {
+        max(0, resetDate.timeIntervalSince(now) / 3600)
+    }
+
+    /// Elapsed hours in the cycle = `cycleHours − rounded remaining hours`,
+    /// clamped to 0...cycleHours.
+    public func elapsedHours(at now: Date = Date()) -> Double {
+        min(QuotaResetTimeline.cycleHours, max(0, QuotaResetTimeline.cycleHours - remainingHours(at: now).rounded()))
+    }
+
+    /// Marker x-fraction (0...1) of the bar width for the given instant.
+    public func elapsedFraction(at now: Date = Date()) -> Double {
+        min(1, max(0, elapsedHours(at: now) / QuotaResetTimeline.cycleHours))
+    }
+}
+
+public struct DeepSeekBalanceSnapshot: Codable, Equatable, Sendable, Identifiable {
+    public var id: Date { hour }
+    public let hour: Date
+    public let remainingRM: Double
+
+    public init(hour: Date, remainingRM: Double) {
+        self.hour = hour
+        self.remainingRM = remainingRM
+    }
+}
+
+public enum DeepSeekBalanceHistory {
+    public static let maximumHours = 720
+    public static let usdToMYR = 4.5
+
+    public static func appending(
+        balanceUSD: Double?,
+        at date: Date,
+        to snapshots: [DeepSeekBalanceSnapshot]
+    ) -> [DeepSeekBalanceSnapshot] {
+        guard let balanceUSD, balanceUSD.isFinite, balanceUSD >= 0 else { return snapshots }
+        let timestamp = floor(date.timeIntervalSince1970 / 3_600) * 3_600
+        let snapshot = DeepSeekBalanceSnapshot(
+            hour: Date(timeIntervalSince1970: timestamp),
+            remainingRM: balanceUSD * usdToMYR
+        )
+        var result = snapshots.filter { $0.hour != snapshot.hour }
+        result.append(snapshot)
+        result.sort { $0.hour < $1.hour }
+        return Array(result.suffix(maximumHours))
+    }
+}
+
+public struct OpenAIQuotaSnapshot: Codable, Equatable, Sendable, Identifiable {
+    public var id: Date { hour }
+    public let hour: Date
+    public let remainingPercent: Double
+
+    public init(hour: Date, remainingPercent: Double) {
+        self.hour = hour
+        self.remainingPercent = remainingPercent
+    }
+}
+
+public enum OpenAIQuotaHistory {
+    public static let maximumHours = 720
+
+    public static func appending(
+        remainingPercent: Double?,
+        at date: Date,
+        to snapshots: [OpenAIQuotaSnapshot]
+    ) -> [OpenAIQuotaSnapshot] {
+        guard let remainingPercent,
+              remainingPercent.isFinite,
+              (0...100).contains(remainingPercent) else { return snapshots }
+        let timestamp = floor(date.timeIntervalSince1970 / 3_600) * 3_600
+        let snapshot = OpenAIQuotaSnapshot(
+            hour: Date(timeIntervalSince1970: timestamp),
+            remainingPercent: remainingPercent
+        )
+        var result = snapshots.filter { $0.hour != snapshot.hour }
+        result.append(snapshot)
+        result.sort { $0.hour < $1.hour }
+        return Array(result.suffix(maximumHours))
+    }
+}
+
 public struct WidgetCache: Codable {
     public let lastUpdated: Date
     public var deepseek: ProviderBalance
@@ -108,8 +238,12 @@ public struct WidgetCache: Codable {
     public var minimaxCredit: Double?
     public var minimaxCreditFetched: Date?
     public var dailyUsage: [DailyUsageRow]
+    public var openAIQuota: OpenAIQuota?
+    public var hourlyUsage: [HourlyUsageBucket]
+    public var deepseekBalanceHistory: [DeepSeekBalanceSnapshot]
+    public var openAIQuotaHistory: [OpenAIQuotaSnapshot]
 
-    public init(lastUpdated: Date = Date(), deepseek: ProviderBalance = ProviderBalance(), minimax: ProviderBalance = ProviderBalance(), minimaxUsage: MiniMaxUsage? = nil, minimaxCredit: Double? = nil, minimaxCreditFetched: Date? = nil, dailyUsage: [DailyUsageRow] = []) {
+    public init(lastUpdated: Date = Date(), deepseek: ProviderBalance = ProviderBalance(), minimax: ProviderBalance = ProviderBalance(), minimaxUsage: MiniMaxUsage? = nil, minimaxCredit: Double? = nil, minimaxCreditFetched: Date? = nil, dailyUsage: [DailyUsageRow] = [], openAIQuota: OpenAIQuota? = nil, hourlyUsage: [HourlyUsageBucket] = [], deepseekBalanceHistory: [DeepSeekBalanceSnapshot] = [], openAIQuotaHistory: [OpenAIQuotaSnapshot] = []) {
         self.lastUpdated = lastUpdated
         self.deepseek = deepseek
         self.minimax = minimax
@@ -117,9 +251,33 @@ public struct WidgetCache: Codable {
         self.minimaxCredit = minimaxCredit
         self.minimaxCreditFetched = minimaxCreditFetched
         self.dailyUsage = dailyUsage
+        self.openAIQuota = openAIQuota
+        self.hourlyUsage = hourlyUsage
+        self.deepseekBalanceHistory = deepseekBalanceHistory
+        self.openAIQuotaHistory = openAIQuotaHistory
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case lastUpdated, deepseek, minimax, minimaxUsage, minimaxCredit
+        case minimaxCreditFetched, dailyUsage, openAIQuota, hourlyUsage, deepseekBalanceHistory, openAIQuotaHistory
+    }
+
+    public init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        lastUpdated = try values.decode(Date.self, forKey: .lastUpdated)
+        deepseek = try values.decode(ProviderBalance.self, forKey: .deepseek)
+        minimax = try values.decode(ProviderBalance.self, forKey: .minimax)
+        minimaxUsage = try values.decodeIfPresent(MiniMaxUsage.self, forKey: .minimaxUsage)
+        minimaxCredit = try values.decodeIfPresent(Double.self, forKey: .minimaxCredit)
+        minimaxCreditFetched = try values.decodeIfPresent(Date.self, forKey: .minimaxCreditFetched)
+        dailyUsage = try values.decodeIfPresent([DailyUsageRow].self, forKey: .dailyUsage) ?? []
+        openAIQuota = try values.decodeIfPresent(OpenAIQuota.self, forKey: .openAIQuota)
+        hourlyUsage = try values.decodeIfPresent([HourlyUsageBucket].self, forKey: .hourlyUsage) ?? []
+        deepseekBalanceHistory = try values.decodeIfPresent([DeepSeekBalanceSnapshot].self, forKey: .deepseekBalanceHistory) ?? []
+        openAIQuotaHistory = try values.decodeIfPresent([OpenAIQuotaSnapshot].self, forKey: .openAIQuotaHistory) ?? []
     }
 
     public var isEmpty: Bool {
-        dailyUsage.isEmpty && deepseek.balance == nil && minimax.balance == nil
+        dailyUsage.isEmpty && hourlyUsage.isEmpty && deepseek.balance == nil && minimax.balance == nil && openAIQuota == nil && openAIQuotaHistory.isEmpty
     }
 }

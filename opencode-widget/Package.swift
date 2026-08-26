@@ -10,9 +10,14 @@ let package = Package(
         .target(
             name: "OpencodeWidgetShared"
         ),
+        .target(
+            name: "OpencodeWidgetLedger",
+            dependencies: ["OpencodeWidgetShared"],
+            linkerSettings: [.linkedLibrary("sqlite3")]
+        ),
         .executableTarget(
             name: "OpencodeWidgetApp",
-            dependencies: ["OpencodeWidgetShared"],
+            dependencies: ["OpencodeWidgetShared", "OpencodeWidgetLedger"],
             resources: [.copy("Resources")],
             linkerSettings: [.linkedLibrary("sqlite3")]
         ),
@@ -24,6 +29,11 @@ let package = Package(
         .testTarget(
             name: "OpencodeWidgetSharedTests",
             dependencies: ["OpencodeWidgetShared"]
+        ),
+        .testTarget(
+            name: "OpencodeWidgetLedgerTests",
+            dependencies: ["OpencodeWidgetLedger", "OpencodeWidgetShared"],
+            linkerSettings: [.linkedLibrary("sqlite3")]
         ),
         .testTarget(
             name: "OpencodeWidgetAppTests",

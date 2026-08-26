@@ -3,6 +3,68 @@ import XCTest
 
 final class ModelsTests: XCTestCase {
 
+    func testHourlyUsageBucketAndCacheRoundTrip() throws {
+        let bucket = HourlyUsageBucket(
+            hour: Date(timeIntervalSince1970: 3_600),
+            openAIInputTokens: 12,
+            deepseekInputTokens: 9,
+            smoothedOpenAIInputTokens: 6.5,
+            smoothedDeepseekInputTokens: 4.5
+        )
+        let original = WidgetCache(hourlyUsage: [bucket])
+
+        let data = try JSONEncoder().encode(original)
+        let decoded = try JSONDecoder().decode(WidgetCache.self, from: data)
+
+        XCTAssertEqual(decoded.hourlyUsage, [bucket])
+        XCTAssertFalse(decoded.isEmpty)
+    }
+
+    func testWidgetCacheDecodesLegacyPayloadWithoutHourlyUsage() throws {
+        let json = #"""
+        {
+          "lastUpdated": 0,
+          "deepseek": {"currency": "USD"},
+          "minimax": {"currency": "USD"},
+          "dailyUsage": []
+        }
+        """#
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .secondsSince1970
+
+        let decoded = try decoder.decode(WidgetCache.self, from: Data(json.utf8))
+
+        XCTAssertEqual(decoded.hourlyUsage, [])
+    }
+
+    func testBalanceHistoryStoresLastObservationForAnHourAndConvertsToRM() {
+        let hour = Date(timeIntervalSince1970: 1_800_000_000)
+        let first = DeepSeekBalanceHistory.appending(balanceUSD: 10, at: hour.addingTimeInterval(60), to: [])
+        let updated = DeepSeekBalanceHistory.appending(balanceUSD: 9.5, at: hour.addingTimeInterval(3_500), to: first)
+
+        XCTAssertEqual(updated, [DeepSeekBalanceSnapshot(hour: hour, remainingRM: 42.75)])
+    }
+
+    func testBalanceHistoryTrimsToThirtyDays() {
+        let start = Date(timeIntervalSince1970: 1_800_000_000)
+        let snapshots = (0...DeepSeekBalanceHistory.maximumHours).reduce([DeepSeekBalanceSnapshot]()) { result, index in
+            DeepSeekBalanceHistory.appending(balanceUSD: Double(index), at: start.addingTimeInterval(Double(index * 3_600)), to: result)
+        }
+
+        XCTAssertEqual(snapshots.count, DeepSeekBalanceHistory.maximumHours)
+        XCTAssertEqual(snapshots.first?.hour, start.addingTimeInterval(3_600))
+    }
+
+    func testWidgetCacheDecodesLegacyPayloadWithoutBalanceHistory() throws {
+        let json = #"""
+        {"lastUpdated":0,"deepseek":{"currency":"USD"},"minimax":{"currency":"USD"},"dailyUsage":[]}
+        """#
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .secondsSince1970
+
+        XCTAssertEqual(try decoder.decode(WidgetCache.self, from: Data(json.utf8)).deepseekBalanceHistory, [])
+    }
+
     // MARK: - ProviderBalance encoding/decoding round-trip
 
     func testProviderBalanceEncodingDecodingRoundTrip() throws {
@@ -92,6 +154,92 @@ final class ModelsTests: XCTestCase {
             minimax: ProviderBalance(balance: 0)
         )
         XCTAssertFalse(cache.isEmpty)
+    }
+
+    func testOpenAIQuotaRoundTrip() throws {
+        let quota = OpenAIQuota(
+            remainingPercent: 97,
+            resetDate: Date(timeIntervalSince1970: 1_752_556_800)
+        )
+        let data = try JSONEncoder().encode(quota)
+        XCTAssertEqual(try JSONDecoder().decode(OpenAIQuota.self, from: data), quota)
+    }
+
+    func testWidgetCacheRoundTripIncludesOpenAIQuota() throws {
+        let quota = OpenAIQuota(remainingPercent: 97, resetDate: Date(timeIntervalSince1970: 0))
+        let original = WidgetCache(openAIQuota: quota)
+        let data = try JSONEncoder().encode(original)
+        XCTAssertEqual(try JSONDecoder().decode(WidgetCache.self, from: data).openAIQuota, quota)
+    }
+
+    func testWidgetCacheWithOnlyOpenAIQuotaIsNotEmpty() {
+        XCTAssertFalse(WidgetCache(openAIQuota: OpenAIQuota(remainingPercent: 97)).isEmpty)
+    }
+
+    // MARK: - QuotaResetTimeline (168h cycle math)
+
+    func testTimelineAtResetEndOfCycle() {
+        let reset = Date(timeIntervalSince1970: 1_000_000)
+        let now = reset
+        let timeline = QuotaResetTimeline(resetDate: reset)
+        // At the reset instant nothing remains → elapsed = 168h → fraction 1.0 (right edge)
+        XCTAssertEqual(timeline.remainingHours(at: now), 0, accuracy: 0.001)
+        XCTAssertEqual(timeline.elapsedFraction(at: now), 1.0, accuracy: 0.001)
+    }
+
+    func testTimelineJustAfterResetStartsAtLeftEdge() {
+        let reset = Date(timeIntervalSince1970: 1_000_000)
+        let now = reset.addingTimeInterval(-168 * 3600)
+        let timeline = QuotaResetTimeline(resetDate: reset)
+        // 168h remaining → elapsed = 0 → fraction 0 (left edge)
+        XCTAssertEqual(timeline.remainingHours(at: now), 168, accuracy: 0.001)
+        XCTAssertEqual(timeline.elapsedFraction(at: now), 0, accuracy: 0.001)
+    }
+
+    func testTimelineHalfwayElapsed() {
+        let reset = Date(timeIntervalSince1970: 1_000_000)
+        let now = reset.addingTimeInterval(-84 * 3600)
+        let timeline = QuotaResetTimeline(resetDate: reset)
+        XCTAssertEqual(timeline.elapsedFraction(at: now), 0.5, accuracy: 0.001)
+    }
+
+    func testTimelineClampedToFullAfterReset() {
+        let reset = Date(timeIntervalSince1970: 1_000_000)
+        let past = reset.addingTimeInterval(3600)
+        let timeline = QuotaResetTimeline(resetDate: reset)
+        XCTAssertEqual(timeline.remainingHours(at: past), 0, accuracy: 0.001)
+        XCTAssertEqual(timeline.elapsedFraction(at: past), 1.0, accuracy: 0.001)
+    }
+
+    func testTimelineRoundedRemainingHoursFormula() {
+        let reset = Date(timeIntervalSince1970: 1_000_000)
+        let now = reset.addingTimeInterval(-167.4 * 3600)
+        let timeline = QuotaResetTimeline(resetDate: reset)
+        // 167.4 remaining rounds to 167 → elapsed = 168 − 167 = 1h
+        XCTAssertEqual(timeline.elapsedHours(at: now), 1, accuracy: 0.001)
+    }
+
+    func testTimelineNegativeRemainingClampsToZero() {
+        let reset = Date(timeIntervalSince1970: 1_000_000)
+        let now = reset.addingTimeInterval(7200)
+        let timeline = QuotaResetTimeline(resetDate: reset)
+        XCTAssertEqual(timeline.remainingHours(at: now), 0, accuracy: 0.001)
+    }
+
+    func testTimelineApproachingResetMarkerNearRightEdge() {
+        let reset = Date(timeIntervalSince1970: 1_000_000)
+        let now = reset.addingTimeInterval(-0.4 * 3600)
+        let timeline = QuotaResetTimeline(resetDate: reset)
+        // 0.4h remaining rounds to 0 → elapsed = 168h → fraction 1.0
+        XCTAssertEqual(timeline.elapsedFraction(at: now), 1.0, accuracy: 0.001)
+    }
+
+    func testTimelineEarlyCycleMarkerNearLeftEdge() {
+        let reset = Date(timeIntervalSince1970: 1_000_000)
+        let now = reset.addingTimeInterval(-167.6 * 3600)
+        let timeline = QuotaResetTimeline(resetDate: reset)
+        // 167.6h remaining rounds to 168 → elapsed = 0h → fraction 0
+        XCTAssertEqual(timeline.elapsedFraction(at: now), 0, accuracy: 0.001)
     }
 
     // MARK: - MiniMaxUsage
@@ -201,5 +349,40 @@ final class ModelsTests: XCTestCase {
         let c = ModelUsageRow(date: "2026-06-30", provider: "deepseek", modelId: "v4", tokens: 200, cost: 2.0)
         XCTAssertEqual(a, b)
         XCTAssertNotEqual(a, c)
+    }
+
+    // MARK: - OpenAIQuotaSnapshot / OpenAIQuotaHistory
+
+    func testOpenAIQuotaHistoryStoresLastObservationForAnHour() {
+        let hour = Date(timeIntervalSince1970: 1_800_000_000)
+        let first = OpenAIQuotaHistory.appending(remainingPercent: 60, at: hour.addingTimeInterval(60), to: [])
+        let updated = OpenAIQuotaHistory.appending(remainingPercent: 55, at: hour.addingTimeInterval(3_500), to: first)
+        XCTAssertEqual(updated, [OpenAIQuotaSnapshot(hour: hour, remainingPercent: 55)])
+    }
+
+    func testOpenAIQuotaHistoryTrimsToThirtyDays() {
+        let start = Date(timeIntervalSince1970: 1_800_000_000)
+        let snapshots = (0...OpenAIQuotaHistory.maximumHours).reduce([OpenAIQuotaSnapshot]()) { result, index in
+            OpenAIQuotaHistory.appending(remainingPercent: Double(index % 100), at: start.addingTimeInterval(Double(index * 3_600)), to: result)
+        }
+        XCTAssertEqual(snapshots.count, OpenAIQuotaHistory.maximumHours)
+        XCTAssertEqual(snapshots.first?.hour, start.addingTimeInterval(3_600))
+    }
+
+    func testOpenAIQuotaHistoryRejectsInvalidValues() {
+        let hour = Date(timeIntervalSince1970: 1_800_000_000)
+        let existing = [OpenAIQuotaSnapshot(hour: hour, remainingPercent: 40)]
+        XCTAssertEqual(OpenAIQuotaHistory.appending(remainingPercent: nil, at: hour, to: existing), existing)
+        XCTAssertEqual(OpenAIQuotaHistory.appending(remainingPercent: 120, at: hour, to: existing), existing)
+        XCTAssertEqual(OpenAIQuotaHistory.appending(remainingPercent: .nan, at: hour, to: existing), existing)
+    }
+
+    func testWidgetCacheDecodesLegacyPayloadWithoutOpenAIQuotaHistory() throws {
+        let json = #"""
+        {"lastUpdated":0,"deepseek":{"currency":"USD"},"minimax":{"currency":"USD"},"dailyUsage":[]}
+        """#
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .secondsSince1970
+        XCTAssertEqual(try decoder.decode(WidgetCache.self, from: Data(json.utf8)).openAIQuotaHistory, [])
     }
 }
