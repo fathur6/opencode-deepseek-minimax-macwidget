@@ -4,12 +4,12 @@ import Charts
 import OpencodeWidgetShared
 #endif
 
-struct DeepSeekBalanceDelta: Identifiable, Equatable {
+struct CombinedConsumptionPoint: Identifiable, Equatable {
     let hour: Date
-    let amount: Double
-    let colorName: String
+    let tokens: Int64
+    let y: Double
 
-    var id: String { "\(hour.timeIntervalSince1970)-\(colorName)" }
+    var id: Date { hour }
 }
 
 struct RemainingQuotaChartPoint: Identifiable, Equatable {
@@ -25,8 +25,7 @@ struct RemainingQuotaChartProjection: Equatable {
     let openAISeriesColor: String
     let deepseekPoints: [RemainingQuotaChartPoint]
     let openAIPoints: [RemainingQuotaChartPoint]
-    let topUps: [DeepSeekBalanceDelta]
-    let consumption: [DeepSeekBalanceDelta]
+    let consumption: [CombinedConsumptionPoint]
     let xDomain: ClosedRange<Date>
     let plotYDomain: ClosedRange<Double>
     let usdAxisMax: Double
@@ -35,7 +34,12 @@ struct RemainingQuotaChartProjection: Equatable {
     private static let deepseekSeriesKey = "DeepSeek"
     private static let openAISeriesKey = "OpenAI"
 
-    init(deepseekSnapshots: [DeepSeekBalanceSnapshot], openAISnapshots: [OpenAIQuotaSnapshot], xDomain: ClosedRange<Date>) {
+    init(
+        deepseekSnapshots: [DeepSeekBalanceSnapshot],
+        openAISnapshots: [OpenAIQuotaSnapshot],
+        hourlyUsage: [HourlyUsageBucket] = [],
+        xDomain: ClosedRange<Date>
+    ) {
         deepseekSeriesColor = "blue"
         openAISeriesColor = "green"
 
@@ -51,16 +55,20 @@ struct RemainingQuotaChartProjection: Equatable {
             RemainingQuotaChartPoint(series: Self.openAISeriesKey, hour: $0.hour, y: $0.remainingPercent / percentAxisMax)
         }
 
-        var topUps: [DeepSeekBalanceDelta] = []
-        var consumption: [DeepSeekBalanceDelta] = []
-        for (previous, current) in zip(deepseekSnapshots, deepseekSnapshots.dropFirst()) {
-            let delta = current.remainingRM - previous.remainingRM
-            if delta > 0 { topUps.append(.init(hour: current.hour, amount: delta / usdToMYR, colorName: "green")) }
-            if delta < 0 { consumption.append(.init(hour: current.hour, amount: -delta / usdToMYR, colorName: "gray")) }
+        let combinedTokens = hourlyUsage.map {
+            max(Int64(0), $0.deepseekInputTokens) + max(Int64(0), $0.openAIInputTokens)
         }
-
-        self.topUps = topUps
-        self.consumption = consumption
+        let maximumCombinedTokens = combinedTokens.max() ?? 0
+        let consumptionScale = maximumCombinedTokens > 0
+            ? Double(maximumCombinedTokens) * 3
+            : 1
+        consumption = zip(hourlyUsage, combinedTokens).map { bucket, tokens in
+            CombinedConsumptionPoint(
+                hour: bucket.hour,
+                tokens: tokens,
+                y: Double(tokens) / consumptionScale
+            )
+        }
         self.xDomain = xDomain
         self.plotYDomain = 0...1
         self.usdAxisMax = usdAxisMax
@@ -125,20 +133,11 @@ struct RemainingQuotaChart: View {
                         .lineStyle(StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
                     }
 
-                    ForEach(projection.topUps) { topUp in
-                        BarMark(
-                            x: .value("Hour", topUp.hour),
-                            yStart: .value("Zero", 0),
-                            yEnd: .value("Top up", topUp.amount / projection.usdAxisMax)
-                        )
-                        .foregroundStyle(.green)
-                    }
-
                     ForEach(projection.consumption) { event in
                         BarMark(
                             x: .value("Hour", event.hour),
                             yStart: .value("Zero", 0),
-                            yEnd: .value("Consumption", event.amount / projection.usdAxisMax)
+                            yEnd: .value("Consumption", event.y)
                         )
                         .foregroundStyle(.gray)
                     }

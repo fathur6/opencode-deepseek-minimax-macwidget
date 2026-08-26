@@ -11,24 +11,22 @@ final class DeepSeekRemainingChartTests: XCTestCase {
         XCTAssertEqual(range.upperBound, Date(timeIntervalSince1970: Double(695 * 3_600)))
     }
 
-    func testProjectionClassifiesTopUpsAndConsumption() {
+    func testProjectionUsesCombinedHourlyInputTokensInsteadOfBalanceDeltas() {
         let start = Date(timeIntervalSince1970: 0)
-        let snapshots = [
-            DeepSeekBalanceSnapshot(hour: start, remainingRM: 45),
-            DeepSeekBalanceSnapshot(hour: start.addingTimeInterval(3_600), remainingRM: 40),
-            DeepSeekBalanceSnapshot(hour: start.addingTimeInterval(7_200), remainingRM: 70)
+        let hourlyUsage = [
+            HourlyUsageBucket(hour: start, openAIInputTokens: -100, deepseekInputTokens: 400),
+            HourlyUsageBucket(hour: start.addingTimeInterval(3_600), openAIInputTokens: 200, deepseekInputTokens: 600)
         ]
 
         let projection = RemainingQuotaChartProjection(
-            deepseekSnapshots: snapshots,
+            deepseekSnapshots: [],
             openAISnapshots: [],
+            hourlyUsage: hourlyUsage,
             xDomain: start...start.addingTimeInterval(167 * 3_600)
         )
 
-        XCTAssertEqual(projection.consumption.map(\.amount), [5 / DeepSeekBalanceHistory.usdToMYR])
-        XCTAssertEqual(projection.topUps.map(\.amount), [30 / DeepSeekBalanceHistory.usdToMYR])
-        XCTAssertEqual(projection.topUps.first?.colorName, "green")
-        XCTAssertEqual(projection.consumption.first?.colorName, "gray")
+        XCTAssertEqual(projection.consumption.map(\.tokens), [400, 800])
+        XCTAssertEqual(projection.consumption.map(\.y), [1.0 / 6.0, 1.0 / 3.0])
     }
 
     func testProjectionRetainsTheProvidedDomainWhenHistoryIsEmpty() {
