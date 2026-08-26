@@ -79,12 +79,14 @@ struct RemainingQuotaChartProjection: Equatable {
 struct RemainingQuotaChart: View {
     let deepseekSnapshots: [DeepSeekBalanceSnapshot]
     let openAISnapshots: [OpenAIQuotaSnapshot]
+    let hourlyUsage: [HourlyUsageBucket]
     let xDomain: ClosedRange<Date>
 
     private var projection: RemainingQuotaChartProjection {
         RemainingQuotaChartProjection(
             deepseekSnapshots: deepseekSnapshots,
             openAISnapshots: openAISnapshots,
+            hourlyUsage: hourlyUsage,
             xDomain: xDomain
         )
     }
@@ -111,6 +113,15 @@ struct RemainingQuotaChart: View {
                     .frame(height: 92, alignment: .leading)
             } else {
                 Chart {
+                    ForEach(projection.consumption) { point in
+                        BarMark(
+                            x: .value("Hour", point.hour),
+                            yStart: .value("Zero", 0),
+                            yEnd: .value("Combined input tokens", point.y)
+                        )
+                        .foregroundStyle(.gray)
+                    }
+
                     ForEach(projection.deepseekPoints) { point in
                         LineMark(
                             x: .value("Hour", point.hour),
@@ -133,14 +144,6 @@ struct RemainingQuotaChart: View {
                         .lineStyle(StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
                     }
 
-                    ForEach(projection.consumption) { event in
-                        BarMark(
-                            x: .value("Hour", event.hour),
-                            yStart: .value("Zero", 0),
-                            yEnd: .value("Consumption", event.y)
-                        )
-                        .foregroundStyle(.gray)
-                    }
                 }
                 .chartForegroundStyleScale([
                     "DeepSeek": Color.blue,

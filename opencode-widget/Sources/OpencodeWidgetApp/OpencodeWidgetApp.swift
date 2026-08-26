@@ -238,7 +238,12 @@ struct MenuContent: View {
                 .padding(.horizontal, 12)
                 .padding(.top, 4)
 
-            RemainingQuotaChart(deepseekSnapshots: balanceSnapshots, openAISnapshots: openAISnapshots, xDomain: chartRange)
+            RemainingQuotaChart(
+                deepseekSnapshots: balanceSnapshots,
+                openAISnapshots: openAISnapshots,
+                hourlyUsage: usageBuckets,
+                xDomain: chartRange
+            )
                 .padding(.horizontal, 12)
                 .padding(.top, 8)
 

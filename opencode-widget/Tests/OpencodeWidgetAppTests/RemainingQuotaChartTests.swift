@@ -3,6 +3,18 @@ import XCTest
 @testable import OpencodeWidgetShared
 
 final class RemainingQuotaChartTests: XCTestCase {
+    func testChartAcceptsHourlyUsageForBackgroundConsumption() {
+        let start = Date(timeIntervalSince1970: 1_800_000_000)
+        let chart = RemainingQuotaChart(
+            deepseekSnapshots: [],
+            openAISnapshots: [],
+            hourlyUsage: [HourlyUsageBucket(hour: start, openAIInputTokens: 120)],
+            xDomain: start...start.addingTimeInterval(167 * 3_600)
+        )
+
+        XCTAssertNotNil(chart)
+    }
+
     func testProjectionAssignsColorsAndPlotDomain() {
         let start = Date(timeIntervalSince1970: 0)
         let deepseek = [DeepSeekBalanceSnapshot(hour: start, remainingRM: 30)]
