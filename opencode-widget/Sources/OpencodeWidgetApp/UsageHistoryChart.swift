@@ -13,7 +13,11 @@ struct UsageHistoryChartPoint: Identifiable, Equatable, Sendable {
     var id: String { "\(provider.rawValue)-\(hour.timeIntervalSince1970)" }
     let provider: UsageChartProvider
     let hour: Date
+    /// Real observed token count; used by accessibility and tests.
     let tokens: Double
+    /// Value used for the plotted height. DeepSeek plots on the visible
+    /// leading y-axis; OpenAI is rescaled onto its own hidden auto-max y2-axis.
+    let plotTokens: Double
 }
 
 struct UsageHistoryChartSeries: Equatable, Sendable {
@@ -24,22 +28,44 @@ struct UsageHistoryChartSeries: Equatable, Sendable {
 
 struct UsageHistoryChartProjection: Equatable, Sendable {
     let series: [UsageHistoryChartSeries]
+    /// Visible leading y-axis domain, describing the DeepSeek token scale.
     let yDomain: ClosedRange<Double>
     let xDomain: ClosedRange<Date>
+    /// Auto-max of each provider, exposed for the hidden second axis and tests.
+    let deepseekMaxTokens: Double
+    let openAIMaxTokens: Double
 
     init(buckets: [HourlyUsageBucket], xDomain: ClosedRange<Date>) {
-        let openAI = buckets.map {
-            UsageHistoryChartPoint(provider: .openAI, hour: $0.hour, tokens: max(0, $0.smoothedOpenAIInputTokens))
+        func finite(_ value: Double) -> Double {
+            value.isFinite ? max(0, value) : 0
         }
-        let deepseek = buckets.map {
-            UsageHistoryChartPoint(provider: .deepseek, hour: $0.hour, tokens: max(0, $0.smoothedDeepseekInputTokens))
+        let openAITokens = buckets.map { finite($0.smoothedOpenAIInputTokens) }
+        let deepseekTokens = buckets.map { finite($0.smoothedDeepseekInputTokens) }
+
+        // Each provider gets its own zero-based auto-max. DeepSeek drives the
+        // visible leading axis; OpenAI is normalised against its own maximum and
+        // drawn on the hidden second axis so a small series stays legible.
+        let deepseekMax = max(1, deepseekTokens.max() ?? 0)
+        let openAIMax = max(1, openAITokens.max() ?? 0)
+        deepseekMaxTokens = deepseekMax
+        openAIMaxTokens = openAIMax
+
+        let openAI = zip(buckets, openAITokens).map { bucket, tokens in
+            UsageHistoryChartPoint(
+                provider: .openAI,
+                hour: bucket.hour,
+                tokens: tokens,
+                plotTokens: tokens / openAIMax * deepseekMax
+            )
+        }
+        let deepseek = zip(buckets, deepseekTokens).map { bucket, tokens in
+            UsageHistoryChartPoint(provider: .deepseek, hour: bucket.hour, tokens: tokens, plotTokens: tokens)
         }
         series = [
             UsageHistoryChartSeries(provider: .openAI, colorName: "green", points: openAI),
             UsageHistoryChartSeries(provider: .deepseek, colorName: "blue", points: deepseek)
         ]
-        let maximum = max(1, (openAI + deepseek).map(\.tokens).filter(\.isFinite).max() ?? 0)
-        yDomain = 0...(maximum * 1.1)
+        yDomain = 0...(deepseekMax * 1.1)
         self.xDomain = xDomain
     }
 }
@@ -67,7 +93,7 @@ struct UsageHistoryChart: View {
                 ForEach(series.points) { point in
                     LineMark(
                         x: .value("Hour", point.hour),
-                        y: .value("Input tokens", point.tokens),
+                        y: .value("Input tokens", point.plotTokens),
                         series: .value("Provider", series.provider.rawValue)
                     )
                     .foregroundStyle(by: .value("Provider", series.provider.rawValue))

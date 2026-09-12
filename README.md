@@ -73,6 +73,17 @@ are preserved.
 
 See [docs/releases/v1.3.0.md](docs/releases/v1.3.0.md) for release notes.
 
+### v1.4.0: Legible OpenAI usage line
+
+In the **Usage** chart, DeepSeek keeps the visible leading y-axis while OpenAI
+is plotted on a hidden second y-axis with its own zero-based auto-max. OpenAI's
+peak reaches the top of the plot and its shape stays proportional to its own
+maximum, so small OpenAI token usage stays readable beside DeepSeek's much
+larger spikes. Accessibility values still report real token counts.
+
+See [docs/releases/v1.4.0.md](docs/releases/v1.4.0.md) for release notes.
+
+
 ## API Approach
 
 ### DeepSeek — `/user/balance`

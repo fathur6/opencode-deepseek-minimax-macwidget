@@ -124,6 +124,60 @@ final class UsageHistoryFetcherTests: XCTestCase {
         XCTAssertEqual(projection.xDomain, xDomain)
     }
 
+    func testOpenAIUsesHiddenAutoMaxOnY2WhileDeepSeekKeepsVisibleScale() {
+        // DeepSeek dwarfs OpenAI on the shared axis; the hidden y2 auto-max must
+        // lift the OpenAI peak to the top of the plot without changing its shape.
+        let deepseek = [1_000.0, 500, 0, 250]
+        let openAI = [10.0, 4, 0, 2]
+        let buckets = zip(deepseek, openAI).enumerated().map { index, pair in
+            HourlyUsageBucket(
+                hour: now.addingTimeInterval(Double(index) * 3_600),
+                smoothedOpenAIInputTokens: pair.1,
+                smoothedDeepseekInputTokens: pair.0
+            )
+        }
+        let xDomain = now...now.addingTimeInterval(167 * 3_600)
+
+        let projection = UsageHistoryChartProjection(buckets: buckets, xDomain: xDomain)
+
+        XCTAssertEqual(projection.deepseekMaxTokens, 1_000)
+        XCTAssertEqual(projection.openAIMaxTokens, 10)
+        XCTAssertEqual(projection.yDomain.upperBound, 1_100, accuracy: 0.0001)
+
+        let openAISeries = projection.series.first { $0.provider == .openAI }!
+        let deepseekSeries = projection.series.first { $0.provider == .deepseek }!
+        // Real token counts are preserved for accessibility.
+        XCTAssertEqual(openAISeries.points.map(\.tokens), openAI)
+        // OpenAI's own max lands at the top of the visible DeepSeek domain...
+        XCTAssertEqual(openAISeries.points[0].plotTokens, 1_000, accuracy: 0.0001)
+        // ...and its shape stays proportional to its own auto-max.
+        XCTAssertEqual(openAISeries.points[1].plotTokens, 400, accuracy: 0.0001)
+        XCTAssertEqual(openAISeries.points[3].plotTokens, 200, accuracy: 0.0001)
+        // DeepSeek still plots on its own real scale.
+        XCTAssertEqual(deepseekSeries.points.map(\.plotTokens), deepseek)
+    }
+
+    func testProjectionHandlesAllZeroAndNonFiniteValuesWithoutNaN() {
+        let buckets = [
+            HourlyUsageBucket(hour: now, smoothedOpenAIInputTokens: .nan, smoothedDeepseekInputTokens: .infinity),
+            HourlyUsageBucket(hour: now.addingTimeInterval(3_600))
+        ]
+        let xDomain = now...now.addingTimeInterval(167 * 3_600)
+
+        let projection = UsageHistoryChartProjection(buckets: buckets, xDomain: xDomain)
+
+        XCTAssertTrue(projection.yDomain.upperBound.isFinite)
+        XCTAssertGreaterThan(projection.yDomain.upperBound, 0)
+        XCTAssertEqual(projection.deepseekMaxTokens, 1)
+        XCTAssertEqual(projection.openAIMaxTokens, 1)
+        for point in projection.series.flatMap(\.points) {
+            XCTAssertTrue(point.tokens.isFinite)
+            XCTAssertTrue(point.plotTokens.isFinite)
+            XCTAssertGreaterThanOrEqual(point.plotTokens, 0)
+            XCTAssertLessThanOrEqual(point.plotTokens, projection.yDomain.upperBound)
+        }
+    }
+
     private func milliseconds(hoursAgo: Int) -> Int64 { Int64(now.addingTimeInterval(Double(-hoursAgo * 3_600)).timeIntervalSince1970 * 1_000) }
     private func seconds(hoursAgo: Int) -> Int64 { Int64(now.addingTimeInterval(Double(-hoursAgo * 3_600)).timeIntervalSince1970) }
 
