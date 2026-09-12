@@ -86,9 +86,10 @@ Items acknowledged and carried forward from previous milestone close:
 | ID | Description | Completed | Status |
 |----|-------------|-----------|--------|
 | 260816-v97 | Add and deploy 168-hour OpenAI/DeepSeek usage chart | 2026-08-16 | Complete |
+| 260912-ns1 | DAF-23 add OpenAI 5-hour quota bar, preserve ledger, ship v1.3.0 | 2026-09-12 | Complete |
 
 ## Session Continuity
 
-Last session: 2026-08-16 22:49
-Stopped at: Completed quick task 260816-v97; changes intentionally uncommitted
+Last session: 2026-09-12 18:18
+Stopped at: Completed quick task 260912-ns1 (DAF-23); committed e04bcd9, released v1.3.0, deployed to /Applications
 Resume file: None
