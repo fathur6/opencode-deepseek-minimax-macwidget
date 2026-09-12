@@ -5,22 +5,20 @@ import OpencodeWidgetShared
 
 /// Usage bar for the ChatGPT Plus quota card: the track fills proportional to
 /// usage (e.g. ~1% glow when 99% remaining), and a thin vertical marker shows
-/// the current position in the 168-hour reset cycle (elapsed hours since reset).
+/// the current position in the supplied reset cycle (weekly by default).
 /// The marker is a pure function of `(resetDate, now)` and updates once per
 /// minute via TimelineView — no network refresh required.
 struct QuotaResetBar: View {
     let remainingPercent: Double?
     let resetDate: Date?
+    var cycleHours: Double = 168
 
     var body: some View {
         TimelineView(.periodic(from: .now, by: 60)) { context in
             let now = context.date
-            let usedFraction = 1 - normalizedRemaining
-            let markerFraction = resetDate.map { QuotaResetTimeline(resetDate: $0).elapsedFraction(at: now) } ?? 0
 
             GeometryReader { proxy in
                 let width = proxy.size.width
-                let fillWidth = width * usedFraction
 
                 ZStack(alignment: .leading) {
                     // Track
@@ -29,23 +27,34 @@ struct QuotaResetBar: View {
                         .frame(width: width, height: 4)
 
                     // Usage fill (glows proportionally to usage)
-                    RoundedRectangle(cornerRadius: 2)
-                        .fill(Color.primary.opacity(0.85))
-                        .frame(width: max(2, fillWidth), height: 4)
+                    if let usedFraction, usedFraction > 0 {
+                        RoundedRectangle(cornerRadius: 2)
+                            .fill(Color.primary.opacity(0.85))
+                            .frame(width: width * usedFraction, height: 4)
+                    }
 
-                    // Moving vertical marker = elapsed hours in the 168h cycle
-                    Rectangle()
-                        .fill(Color.primary)
-                        .frame(width: 2, height: 8)
-                        .position(x: min(width - 1, max(1, width * markerFraction)), y: 2)
+                    if let markerFraction = markerFraction(at: now) {
+                        Rectangle()
+                            .fill(Color.primary)
+                            .frame(width: 2, height: 8)
+                            .position(x: min(width - 1, max(1, width * markerFraction)), y: 2)
+                    }
                 }
             }
             .frame(height: 8)
         }
     }
 
-    private var normalizedRemaining: Double {
-        guard let remainingPercent, remainingPercent.isFinite else { return 0 }
-        return min(1, max(0, remainingPercent / 100))
+    var usedFraction: Double? {
+        guard let remainingPercent, remainingPercent.isFinite,
+              (0...100).contains(remainingPercent) else { return nil }
+        return 1 - remainingPercent / 100
+    }
+
+    func markerFraction(at now: Date) -> Double? {
+        guard let resetDate else { return nil }
+        let timeline = QuotaResetTimeline(resetDate: resetDate, cycleHours: cycleHours)
+        guard timeline.isValid(at: now) else { return nil }
+        return timeline.elapsedFraction(at: now)
     }
 }

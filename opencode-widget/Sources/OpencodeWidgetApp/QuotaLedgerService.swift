@@ -98,10 +98,11 @@ final class QuotaLedgerService {
         let now = now()
         let dsUSD = cache.deepseek.balance
         let oaPercent = cache.openAIQuota?.remainingPercent
+        let fiveHourPercent = cache.openAIQuota?.fiveHourRemainingPercent
         let currentHour = Date(timeIntervalSince1970: floor(now.timeIntervalSince1970 / 3_600) * 3_600)
         let hourlyTotal = hourlyTotals()?[currentHour]
         let dsHourly = deepseekHourlyTotals()?[currentHour]
-        guard dsUSD != nil || oaPercent != nil || hourlyTotal != nil || dsHourly != nil else { return }
+        guard dsUSD != nil || oaPercent != nil || fiveHourPercent != nil || hourlyTotal != nil || dsHourly != nil else { return }
         ledger.record(
             hour: now,
             deepseekUSD: dsUSD,
@@ -109,7 +110,9 @@ final class QuotaLedgerService {
             deepseekInputTokens: dsHourly?.inputTokens,
             openAIInputTokens: hourlyTotal?.inputTokens,
             openAIEstimatedCostUSD: hourlyTotal?.estimatedCostUSD,
-            source: sourceLabel(ds: dsUSD, oa: oaPercent)
+            fiveHourRemainingPercent: fiveHourPercent,
+            fiveHourResetDate: cache.openAIQuota?.fiveHourResetDate,
+            source: sourceLabel(ds: dsUSD, oa: oaPercent ?? fiveHourPercent)
         )
         ledger.prune(retentionMonths: 12)
     }

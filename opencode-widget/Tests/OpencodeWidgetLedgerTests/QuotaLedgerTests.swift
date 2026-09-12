@@ -120,4 +120,115 @@ final class QuotaLedgerTests: XCTestCase {
             2
         )
     }
+
+    func testMigrationPreservesOriginalAndCurrentSchemaRawValuesOnEveryReopen() throws {
+        for current in [false, true] {
+            let path = dbPath + (current ? "-current" : "-original")
+            defer { try? FileManager.default.removeItem(atPath: path) }
+            var db: OpaquePointer?
+            XCTAssertEqual(sqlite3_open(path, &db), SQLITE_OK)
+            defer { sqlite3_close(db) }
+            let extras = current ? ", deepseek_input_tokens INTEGER, openai_input_tokens INTEGER, openai_estimated_cost_usd REAL" : ""
+            XCTAssertEqual(sqlite3_exec(db, """
+                CREATE TABLE quota_snapshots(hour TEXT PRIMARY KEY, deepseek_usd REAL, openai_percent REAL, source TEXT, recorded_at TEXT\(extras));
+                CREATE TABLE quota_month_mark(yyyy_mm TEXT PRIMARY KEY, emailed_at TEXT);
+                INSERT INTO quota_month_mark VALUES ('2020-01','unchanged'), ('2020-02',NULL);
+                INSERT INTO quota_snapshots(hour,deepseek_usd,openai_percent,source,recorded_at) VALUES
+                  ('2020-01-01T00:00:00Z',NULL,0,NULL,'original timestamp'),
+                  ('2020-01-01T01:00:00Z',0,NULL,'fixture',NULL),
+                  ('2020-01-01T02:00:00Z',12.5,45.5,'both','preserve me');
+                """, nil, nil, nil), SQLITE_OK)
+            if current {
+                XCTAssertEqual(sqlite3_exec(db, "UPDATE quota_snapshots SET deepseek_input_tokens=123, openai_input_tokens=456, openai_estimated_cost_usd=7.89 WHERE source='both'; UPDATE quota_snapshots SET deepseek_input_tokens=0,openai_input_tokens=0,openai_estimated_cost_usd=0 WHERE source='fixture';", nil, nil, nil), SQLITE_OK)
+            }
+            let columns = "hour,deepseek_usd,openai_percent,source,recorded_at" + (current ? ",deepseek_input_tokens,openai_input_tokens,openai_estimated_cost_usd" : "")
+            let projection = "SELECT \(columns) FROM quota_snapshots ORDER BY hour"
+            let before = try rawRows(db, projection)
+            let marks = try rawRows(db, "SELECT * FROM quota_month_mark ORDER BY yyyy_mm")
+            for _ in 0..<3 {
+                var migrated: QuotaLedger? = QuotaLedger(path: path)
+                XCTAssertNil(migrated?.migrationError)
+                XCTAssertEqual(migrated?.count(), 3)
+                XCTAssertEqual(try rawRows(db, projection), before)
+                XCTAssertEqual(try rawRows(db, "SELECT * FROM quota_month_mark ORDER BY yyyy_mm"), marks)
+                XCTAssertEqual(try rawRows(db, "SELECT openai_five_hour_percent,openai_five_hour_reset_at FROM quota_snapshots"), Array(repeating: [nil, nil], count: 3))
+                XCTAssertTrue(migrated?.recentSnapshots(limit: 3).allSatisfy { $0.fiveHourRemainingPercent == nil && $0.fiveHourResetDate == nil } ?? false)
+                XCTAssertEqual(try rawRows(db, "PRAGMA integrity_check"), [["3:ok"]])
+                migrated = nil
+            }
+        }
+    }
+
+    func testFiveHourValuesSurviveUpsertBothReadersAndReopen() throws {
+        let hour = Date(timeIntervalSince1970: 1_800_000_000)
+        let reset = hour.addingTimeInterval(18000.5)
+        ledger.record(hour: hour, deepseekUSD: 12, openaiPercent: 45, deepseekInputTokens: 123, openAIInputTokens: 456, openAIEstimatedCostUSD: 7.89, fiveHourRemainingPercent: 80, fiveHourResetDate: reset, source: "both")
+        ledger.record(hour: hour, deepseekUSD: nil, openaiPercent: nil, fiveHourRemainingPercent: 60, source: "openai")
+        ledger.record(hour: hour, deepseekUSD: nil, openaiPercent: nil, source: "unavailable")
+        for _ in 0..<3 {
+            let rows = ledger.rows(from: hour, to: hour.addingTimeInterval(3600))
+            XCTAssertEqual(rows, ledger.recentSnapshots(limit: 1))
+            let row = try XCTUnwrap(rows.first)
+            XCTAssertEqual(row.fiveHourRemainingPercent, 60)
+            XCTAssertEqual(row.fiveHourResetDate, reset)
+            XCTAssertEqual(row.deepseekUSD, 12)
+            XCTAssertEqual(row.openaiPercent, 45)
+            XCTAssertEqual(row.deepseekInputTokens, 123)
+            XCTAssertEqual(row.openAIInputTokens, 456)
+            XCTAssertEqual(row.openAIEstimatedCostUSD, 7.89)
+            ledger = nil
+            ledger = QuotaLedger(path: dbPath)
+        }
+    }
+
+    func testLockedMigrationReportsSanitizedFailureWithoutChangingRows() throws {
+        var db: OpaquePointer?
+        XCTAssertEqual(sqlite3_open(dbPath, &db), SQLITE_OK)
+        defer { sqlite3_close(db) }
+        XCTAssertEqual(sqlite3_exec(db, "BEGIN EXCLUSIVE", nil, nil, nil), SQLITE_OK)
+        let unavailable = QuotaLedger(path: dbPath)
+        XCTAssertEqual(unavailable.migrationError, "Quota ledger schema migration failed.")
+        XCTAssertEqual(sqlite3_exec(db, "ROLLBACK", nil, nil, nil), SQLITE_OK)
+        XCTAssertNil(QuotaLedger(path: dbPath).migrationError)
+    }
+
+    private func rawRows(_ db: OpaquePointer?, _ sql: String) throws -> [[String?]] {
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
+            XCTFail("Fixture query failed")
+            throw NSError(domain: "FixtureSQL", code: 1)
+        }
+        defer { sqlite3_finalize(statement) }
+        var result: [[String?]] = []
+        var status = sqlite3_step(statement)
+        while status == SQLITE_ROW {
+            result.append((0..<sqlite3_column_count(statement)).map { index in
+                let type = sqlite3_column_type(statement, index)
+                guard type != SQLITE_NULL, let text = sqlite3_column_text(statement, index) else { return nil }
+                return "\(type):" + String(cString: text)
+            })
+            status = sqlite3_step(statement)
+        }
+        XCTAssertEqual(status, SQLITE_DONE)
+        return result
+    }
+
+    func testFailedAdditionRollsBackEarlierAdditionAndIndexCreation() throws {
+        let path = dbPath + "-rollback"
+        defer { try? FileManager.default.removeItem(atPath: path) }
+        var db: OpaquePointer?
+        XCTAssertEqual(sqlite3_open(path, &db), SQLITE_OK)
+        defer { sqlite3_close(db) }
+        // Leave exactly one column slot: the first addition succeeds and the
+        // second must fail. This exercises rollback after a partial migration.
+        let limit = Int(sqlite3_limit(db, SQLITE_LIMIT_COLUMN, -1))
+        let padding = (0..<(limit - 6)).map { "fixture_\($0) INTEGER" }.joined(separator: ",")
+        XCTAssertEqual(sqlite3_exec(db, "CREATE TABLE quota_snapshots(hour TEXT PRIMARY KEY,deepseek_usd REAL,openai_percent REAL,source TEXT,recorded_at TEXT,\(padding)); INSERT INTO quota_snapshots(hour,openai_percent) VALUES('old',0);", nil, nil, nil), SQLITE_OK)
+        let schemaBefore = try rawRows(db, "SELECT type,name,sql FROM sqlite_schema ORDER BY name")
+        let valuesBefore = try rawRows(db, "SELECT * FROM quota_snapshots")
+        let failed = QuotaLedger(path: path)
+        XCTAssertEqual(failed.migrationError, "Quota ledger schema migration failed.")
+        XCTAssertEqual(try rawRows(db, "SELECT type,name,sql FROM sqlite_schema ORDER BY name"), schemaBefore)
+        XCTAssertEqual(try rawRows(db, "SELECT * FROM quota_snapshots"), valuesBefore)
+    }
 }

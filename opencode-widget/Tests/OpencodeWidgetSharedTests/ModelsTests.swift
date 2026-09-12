@@ -3,6 +3,26 @@ import XCTest
 
 final class ModelsTests: XCTestCase {
 
+    func testLegacyQuotaDecodesWithNoFiveHourValues() throws {
+        let quota = try JSONDecoder().decode(OpenAIQuota.self, from: Data(#"{"remainingPercent":45,"resetDate":100}"#.utf8))
+        XCTAssertEqual(quota.remainingPercent, 45)
+        XCTAssertEqual(quota.resetDate, Date(timeIntervalSinceReferenceDate: 100))
+        XCTAssertNil(quota.fiveHourRemainingPercent)
+        XCTAssertNil(quota.fiveHourResetDate)
+    }
+
+    func testFiveHourTimelineIsContinuousAndBounded() {
+        let reset = Date(timeIntervalSince1970: 1_800_000_000)
+        let timeline = QuotaResetTimeline(resetDate: reset, cycleHours: 5)
+        for (secondsBeforeReset, expected) in [(20000.0, 0.0), (18000, 0), (9000, 0.5), (8940, 0.5 + 1.0 / 300), (0, 1), (-60, 1)] {
+            XCTAssertEqual(timeline.elapsedFraction(at: reset.addingTimeInterval(-secondsBeforeReset)), expected, accuracy: 0.000001)
+        }
+        for cycle in [0.0, -5, .infinity, .nan] {
+            XCTAssertEqual(QuotaResetTimeline(resetDate: reset, cycleHours: cycle).elapsedFraction(at: reset), 0)
+        }
+        XCTAssertEqual(QuotaResetTimeline(resetDate: Date(timeIntervalSince1970: .nan), cycleHours: 5).elapsedFraction(at: reset), 0)
+    }
+
     func testHourlyUsageBucketAndCacheRoundTrip() throws {
         let bucket = HourlyUsageBucket(
             hour: Date(timeIntervalSince1970: 3_600),
@@ -211,12 +231,11 @@ final class ModelsTests: XCTestCase {
         XCTAssertEqual(timeline.elapsedFraction(at: past), 1.0, accuracy: 0.001)
     }
 
-    func testTimelineRoundedRemainingHoursFormula() {
+    func testTimelineUsesContinuousRemainingHours() {
         let reset = Date(timeIntervalSince1970: 1_000_000)
         let now = reset.addingTimeInterval(-167.4 * 3600)
         let timeline = QuotaResetTimeline(resetDate: reset)
-        // 167.4 remaining rounds to 167 → elapsed = 168 − 167 = 1h
-        XCTAssertEqual(timeline.elapsedHours(at: now), 1, accuracy: 0.001)
+        XCTAssertEqual(timeline.elapsedHours(at: now), 0.6, accuracy: 0.001)
     }
 
     func testTimelineNegativeRemainingClampsToZero() {
@@ -230,16 +249,14 @@ final class ModelsTests: XCTestCase {
         let reset = Date(timeIntervalSince1970: 1_000_000)
         let now = reset.addingTimeInterval(-0.4 * 3600)
         let timeline = QuotaResetTimeline(resetDate: reset)
-        // 0.4h remaining rounds to 0 → elapsed = 168h → fraction 1.0
-        XCTAssertEqual(timeline.elapsedFraction(at: now), 1.0, accuracy: 0.001)
+        XCTAssertEqual(timeline.elapsedFraction(at: now), 167.6 / 168, accuracy: 0.000001)
     }
 
     func testTimelineEarlyCycleMarkerNearLeftEdge() {
         let reset = Date(timeIntervalSince1970: 1_000_000)
         let now = reset.addingTimeInterval(-167.6 * 3600)
         let timeline = QuotaResetTimeline(resetDate: reset)
-        // 167.6h remaining rounds to 168 → elapsed = 0h → fraction 0
-        XCTAssertEqual(timeline.elapsedFraction(at: now), 0, accuracy: 0.001)
+        XCTAssertEqual(timeline.elapsedFraction(at: now), 0.4 / 168, accuracy: 0.000001)
     }
 
     // MARK: - MiniMaxUsage

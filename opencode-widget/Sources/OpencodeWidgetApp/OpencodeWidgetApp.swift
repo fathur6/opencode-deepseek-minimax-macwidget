@@ -134,8 +134,25 @@ struct MenuContent: View {
     @State private var chartOffsetHours = 0
 
     static func quotaText(_ quota: OpenAIQuota?) -> String {
-        guard let percent = quota?.remainingPercent else { return "Quota unavailable" }
+        remainingText(quota?.remainingPercent)
+    }
+
+    static func remainingText(_ percent: Double?) -> String {
+        guard let percent, percent.isFinite, (0...100).contains(percent) else { return "Quota unavailable" }
         return String(format: "%.0f%% remaining", percent)
+    }
+
+    struct QuotaRow: Identifiable {
+        var id: String { label }
+        let label: String
+        let remainingPercent: Double?
+        let resetDate: Date?
+        let cycleHours: Double
+    }
+
+    static func quotaRows(_ quota: OpenAIQuota?) -> [QuotaRow] {
+        [QuotaRow(label: "5h", remainingPercent: quota?.fiveHourRemainingPercent, resetDate: quota?.fiveHourResetDate, cycleHours: 5),
+         QuotaRow(label: "Weekly", remainingPercent: quota?.remainingPercent, resetDate: quota?.resetDate, cycleHours: 168)]
     }
 
     static func resetText(_ date: Date?) -> String {
@@ -193,15 +210,17 @@ struct MenuContent: View {
                             .foregroundColor(.secondary)
                             .monospacedDigit()
                     }
-                    Text(Self.quotaText(menuState.openAIQuota))
-                        .font(.headline).fontWeight(.semibold).monospacedDigit()
-                    QuotaResetBar(
-                        remainingPercent: menuState.openAIQuota?.remainingPercent,
-                        resetDate: menuState.openAIQuota?.resetDate
-                    )
-                    .padding(.top, 2)
-                    Text(Self.resetText(menuState.openAIQuota?.resetDate))
-                        .font(.caption2).foregroundColor(.secondary)
+                    ForEach(Self.quotaRows(menuState.openAIQuota)) { row in
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(row.label).font(.caption).foregroundColor(.secondary)
+                            Text(Self.remainingText(row.remainingPercent))
+                                .font(.headline).fontWeight(.semibold).monospacedDigit()
+                            QuotaResetBar(remainingPercent: row.remainingPercent, resetDate: row.resetDate, cycleHours: row.cycleHours)
+                                .padding(.top, 2)
+                            Text(Self.resetText(row.resetDate))
+                                .font(.caption2).foregroundColor(.secondary)
+                        }
+                    }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(8)

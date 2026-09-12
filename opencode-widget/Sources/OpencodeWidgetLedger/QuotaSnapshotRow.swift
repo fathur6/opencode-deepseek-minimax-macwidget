@@ -7,6 +7,8 @@ public struct QuotaSnapshotRow: Equatable, Sendable {
     public let deepseekInputTokens: Int?
     public let openAIInputTokens: Int?
     public let openAIEstimatedCostUSD: Double?
+    public let fiveHourRemainingPercent: Double?
+    public let fiveHourResetDate: Date?
     public let source: String
 
     public init(
@@ -16,6 +18,8 @@ public struct QuotaSnapshotRow: Equatable, Sendable {
         deepseekInputTokens: Int? = nil,
         openAIInputTokens: Int? = nil,
         openAIEstimatedCostUSD: Double? = nil,
+        fiveHourRemainingPercent: Double? = nil,
+        fiveHourResetDate: Date? = nil,
         source: String
     ) {
         self.hour = hour
@@ -24,6 +28,8 @@ public struct QuotaSnapshotRow: Equatable, Sendable {
         self.deepseekInputTokens = deepseekInputTokens
         self.openAIInputTokens = openAIInputTokens
         self.openAIEstimatedCostUSD = openAIEstimatedCostUSD
+        self.fiveHourRemainingPercent = fiveHourRemainingPercent
+        self.fiveHourResetDate = fiveHourResetDate
         self.source = source
     }
 }

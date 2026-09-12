@@ -22,21 +22,43 @@ enum OpenAIQuotaFetcher {
             case primaryWindow = "primary_window"
             case secondaryWindow = "secondary_window"
         }
+
+        init(from decoder: Decoder) throws {
+            let values = try decoder.container(keyedBy: CodingKeys.self)
+            primaryWindow = try? values.decode(UsageWindow.self, forKey: .primaryWindow)
+            secondaryWindow = try? values.decode(UsageWindow.self, forKey: .secondaryWindow)
+        }
     }
 
     private struct UsageWindow: Decodable {
         let usedPercent: Double?
         let resetAt: Double?
+        let duration: Double?
 
         enum CodingKeys: String, CodingKey {
             case usedPercent = "used_percent"
             case resetAt = "reset_at"
+            case duration = "limit_window_seconds"
+        }
+
+        init(from decoder: Decoder) throws {
+            let values = try decoder.container(keyedBy: CodingKeys.self)
+            usedPercent = try? values.decode(Double.self, forKey: .usedPercent)
+            resetAt = try? values.decode(Double.self, forKey: .resetAt)
+            duration = try? values.decode(Double.self, forKey: .duration)
+        }
+
+        var resetDate: Date? {
+            // Limit timestamps to Foundation's supported calendar range, not
+            // merely finite Doubles (which can represent unusable dates).
+            guard let resetAt, resetAt.isFinite, resetAt > 0,
+                  resetAt <= Date.distantFuture.timeIntervalSince1970 else { return nil }
+            return Date(timeIntervalSince1970: resetAt)
         }
     }
 
     /// Fetches the subscription quota using the OAuth token from Codex login.
-    /// The weekly/secondary window is preferred because it matches the
-    /// weekly usage card; the primary window is a safe fallback.
+    /// Classifies both windows by duration, never by their position in JSON.
     static func fetch(
         authPath: String = "\(NSHomeDirectory())/.codex/auth.json",
         session: URLSession = .shared,
@@ -69,18 +91,24 @@ enum OpenAIQuotaFetcher {
         }
 
         guard let payload = try? JSONDecoder().decode(UsageResponse.self, from: data),
-              let window = payload.rateLimit?.secondaryWindow ?? payload.rateLimit?.primaryWindow,
-              let usedPercent = window.usedPercent,
-              usedPercent.isFinite,
-              usedPercent >= 0,
-              usedPercent <= 100 else {
+              let rateLimit = payload.rateLimit else {
             return nil
         }
 
-        let resetDate = window.resetAt.map(Date.init(timeIntervalSince1970:))
-        return OpenAIQuota(
-            remainingPercent: max(0, min(100, 100 - usedPercent)),
-            resetDate: resetDate
-        )
+        var quota = OpenAIQuota()
+        for window in [rateLimit.primaryWindow, rateLimit.secondaryWindow].compactMap({ $0 }) {
+            guard let usedPercent = window.usedPercent, usedPercent.isFinite,
+                  (0...100).contains(usedPercent) else { continue }
+            switch window.duration {
+            case 18000 where quota.fiveHourRemainingPercent == nil:
+                quota.fiveHourRemainingPercent = 100 - usedPercent
+                quota.fiveHourResetDate = window.resetDate
+            case 604800 where quota.remainingPercent == nil:
+                quota.remainingPercent = 100 - usedPercent
+                quota.resetDate = window.resetDate
+            default: break
+            }
+        }
+        return quota.remainingPercent != nil || quota.fiveHourRemainingPercent != nil ? quota : nil
     }
 }

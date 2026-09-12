@@ -29,6 +29,34 @@ final class DataStoreTests: XCTestCase {
     func tempSuiteName() -> String { tempDir.appendingPathComponent("suite").path }
     func tempFileName() -> String { "test-widget-data.json" }
 
+    func testDualQuotaAndAllCacheFieldsRoundTrip() throws {
+        let date = Date(timeIntervalSince1970: 1_800_000_000)
+        let cache = WidgetCache(lastUpdated: date,
+            deepseek: ProviderBalance(balance: 12), minimax: ProviderBalance(balance: 34),
+            minimaxUsage: MiniMaxUsage(remainingPrompts: 5, totalPrompts: 10), minimaxCredit: 3, minimaxCreditFetched: date,
+            dailyUsage: [DailyUsageRow(date: "2027-01-15", deepseekTokens: 100, deepseekCost: 1.5, minimaxTokens: 200, minimaxCost: 2.5)],
+            openAIQuota: OpenAIQuota(remainingPercent: 0, resetDate: date, fiveHourRemainingPercent: 80, fiveHourResetDate: date.addingTimeInterval(-18000)),
+            hourlyUsage: [HourlyUsageBucket(hour: date, openAIInputTokens: 123, deepseekInputTokens: 456)],
+            deepseekBalanceHistory: [DeepSeekBalanceSnapshot(hour: date, remainingRM: 54)],
+            openAIQuotaHistory: [OpenAIQuotaSnapshot(hour: date, remainingPercent: 0)])
+        DataStore.save(cache: cache, suiteName: tempSuiteName(), fileName: tempFileName())
+        let loaded = try XCTUnwrap(DataStore.load(suiteName: tempSuiteName(), fileName: tempFileName()))
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = .sortedKeys
+        XCTAssertEqual(try encoder.encode(loaded), try encoder.encode(cache))
+    }
+
+    func testLegacyCacheFileLoadsWeeklyWithoutFiveHourValues() throws {
+        let url = try XCTUnwrap(DataStore.sharedContainerURL(suiteName: tempSuiteName(), fileName: tempFileName()))
+        try #"{"lastUpdated":"2026-09-12T00:00:00Z","deepseek":{"currency":"USD","balance":10},"minimax":{"currency":"USD"},"openAIQuota":{"remainingPercent":45,"resetDate":"2026-09-15T00:00:00Z"}}"#.write(to: url, atomically: true, encoding: .utf8)
+        let loaded = try XCTUnwrap(DataStore.load(suiteName: tempSuiteName(), fileName: tempFileName()))
+        XCTAssertEqual(loaded.openAIQuota?.remainingPercent, 45)
+        XCTAssertNotNil(loaded.openAIQuota?.resetDate)
+        XCTAssertNil(loaded.openAIQuota?.fiveHourRemainingPercent)
+        XCTAssertNil(loaded.openAIQuota?.fiveHourResetDate)
+        XCTAssertEqual(loaded.deepseek.balance, 10)
+    }
+
     // MARK: - Save and Load round-trip
 
     func testSaveAndLoadRoundTrip() throws {

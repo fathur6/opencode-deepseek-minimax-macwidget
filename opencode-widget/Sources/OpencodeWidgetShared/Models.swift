@@ -103,10 +103,14 @@ public struct ModelUsageRow: Codable, Identifiable, Equatable {
 public struct OpenAIQuota: Codable, Equatable, Sendable {
     public var remainingPercent: Double?
     public var resetDate: Date?
+    public var fiveHourRemainingPercent: Double?
+    public var fiveHourResetDate: Date?
 
-    public init(remainingPercent: Double? = nil, resetDate: Date? = nil) {
+    public init(remainingPercent: Double? = nil, resetDate: Date? = nil, fiveHourRemainingPercent: Double? = nil, fiveHourResetDate: Date? = nil) {
         self.remainingPercent = remainingPercent
         self.resetDate = resetDate
+        self.fiveHourRemainingPercent = fiveHourRemainingPercent
+        self.fiveHourResetDate = fiveHourResetDate
     }
 }
 
@@ -133,33 +137,43 @@ public struct HourlyUsageBucket: Codable, Equatable, Sendable, Identifiable {
     }
 }
 
-/// Pure math for the 168-hour reset-cycle timeline. Marker position =
-/// elapsed hours in the cycle = `cycleHours − rounded remaining hours`,
-/// expressed as a fraction 0...1 of the bar width. SwiftUI-free so it is
-/// unit-testable in the shared layer.
+/// Continuous, server-anchored reset-cycle math. Weekly remains the default;
+/// display text may round hours, but marker positions never do.
 public struct QuotaResetTimeline: Sendable, Equatable {
     public static let cycleHours: Double = 168
 
     public let resetDate: Date
+    public let durationHours: Double
 
-    public init(resetDate: Date) {
+    public init(resetDate: Date, cycleHours: Double = Self.cycleHours) {
         self.resetDate = resetDate
+        self.durationHours = cycleHours
     }
 
-    /// Whole hours remaining until reset (clamped ≥ 0; 0 after reset).
+    public func isValid(at now: Date) -> Bool {
+        durationHours.isFinite && durationHours > 0 &&
+        resetDate.timeIntervalSinceReferenceDate.isFinite &&
+        now.timeIntervalSinceReferenceDate.isFinite &&
+        resetDate.timeIntervalSince(now).isFinite
+    }
+
+    /// Fractional hours remaining until reset (clamped ≥ 0; 0 after reset).
     public func remainingHours(at now: Date = Date()) -> Double {
-        max(0, resetDate.timeIntervalSince(now) / 3600)
+        guard isValid(at: now) else { return 0 }
+        return max(0, resetDate.timeIntervalSince(now) / 3600)
     }
 
-    /// Elapsed hours in the cycle = `cycleHours − rounded remaining hours`,
+    /// Elapsed hours in the cycle = `cycleHours − remaining hours`,
     /// clamped to 0...cycleHours.
     public func elapsedHours(at now: Date = Date()) -> Double {
-        min(QuotaResetTimeline.cycleHours, max(0, QuotaResetTimeline.cycleHours - remainingHours(at: now).rounded()))
+        guard isValid(at: now) else { return 0 }
+        return min(durationHours, max(0, durationHours - remainingHours(at: now)))
     }
 
     /// Marker x-fraction (0...1) of the bar width for the given instant.
     public func elapsedFraction(at now: Date = Date()) -> Double {
-        min(1, max(0, elapsedHours(at: now) / QuotaResetTimeline.cycleHours))
+        guard isValid(at: now) else { return 0 }
+        return min(1, max(0, elapsedHours(at: now) / durationHours))
     }
 }
 

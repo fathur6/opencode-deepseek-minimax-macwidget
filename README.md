@@ -54,6 +54,25 @@ controls move both charts together by one day.
 
 *Latest iteration with OpenAI quota, provider balances, the two-line usage chart, and the dual-axis remaining quota chart.*
 
+### v1.3.0: 5-Hour + Weekly OpenAI Quota
+
+The OpenAI card now shows both subscription windows as separate rows — a
+**5h** bar directly above the existing **Weekly** bar. Each row has its own
+remaining percentage, monochrome usage bar with a server-anchored elapsed
+marker, and reset time. The estimated weekly cost stays anchored to the
+168-hour window.
+
+Both windows come from the same authenticated `/backend-api/wham/usage`
+request and are classified by their `limit_window_seconds` duration
+(`18000` = 5h, `604800` = weekly), so a reversed or reordered payload cannot
+mislabel them. If one window is missing or malformed, the other is still
+shown, and a failed refresh keeps the last known value for each window
+independently. The new 5-hour readings are stored additively in the existing
+local SQLite ledger; old rows and the DeepSeek/OpenAI usage and cost history
+are preserved.
+
+See [docs/releases/v1.3.0.md](docs/releases/v1.3.0.md) for release notes.
+
 ## API Approach
 
 ### DeepSeek — `/user/balance`

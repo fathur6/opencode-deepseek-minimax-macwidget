@@ -6,13 +6,20 @@ import OpencodeWidgetShared
 
 public final class QuotaLedger {
     private var db: OpaquePointer?
+    public private(set) var migrationError: String?
 
     public init(path: String) {
         var handle: OpaquePointer?
         if sqlite3_open(path, &handle) == SQLITE_OK, let handle {
             db = handle
-            createSchema()
+            if !createSchema() {
+                migrationError = "Quota ledger schema migration failed."
+                NSLog("Quota ledger schema migration failed.")
+                sqlite3_close(handle)
+                db = nil
+            }
         } else {
+            sqlite3_close(handle)
             db = nil
         }
     }
@@ -25,8 +32,12 @@ public final class QuotaLedger {
         if let db { sqlite3_close(db) }
     }
 
-    private func createSchema() {
-        guard let db else { return }
+    private func createSchema() -> Bool {
+        guard let db, sqlite3_exec(db, "BEGIN IMMEDIATE", nil, nil, nil) == SQLITE_OK else { return false }
+        var committed = false
+        defer {
+            if !committed { sqlite3_exec(db, "ROLLBACK", nil, nil, nil) }
+        }
         let schema = """
         CREATE TABLE IF NOT EXISTS quota_snapshots(
           hour TEXT PRIMARY KEY,
@@ -41,10 +52,32 @@ public final class QuotaLedger {
           emailed_at TEXT
         );
         """
-        sqlite3_exec(db, schema, nil, nil, nil)
-        sqlite3_exec(db, "ALTER TABLE quota_snapshots ADD COLUMN deepseek_input_tokens INTEGER", nil, nil, nil)
-        sqlite3_exec(db, "ALTER TABLE quota_snapshots ADD COLUMN openai_input_tokens INTEGER", nil, nil, nil)
-        sqlite3_exec(db, "ALTER TABLE quota_snapshots ADD COLUMN openai_estimated_cost_usd REAL", nil, nil, nil)
+        guard sqlite3_exec(db, schema, nil, nil, nil) == SQLITE_OK else { return false }
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(db, "PRAGMA table_info(quota_snapshots)", -1, &statement, nil) == SQLITE_OK else { return false }
+        var columns = Set<String>()
+        var status = sqlite3_step(statement)
+        while status == SQLITE_ROW {
+            if let name = sqliteText(statement, index: 1) { columns.insert(name.lowercased()) }
+            status = sqlite3_step(statement)
+        }
+        let finalized = sqlite3_finalize(statement)
+        guard status == SQLITE_DONE, finalized == SQLITE_OK else { return false }
+        // Static identifiers only. No table recreation, data backfill or retention
+        // occurs during migration; old rows receive NULL for every added field.
+        let additions = [
+            ("deepseek_input_tokens", "INTEGER"),
+            ("openai_input_tokens", "INTEGER"),
+            ("openai_estimated_cost_usd", "REAL"),
+            ("openai_five_hour_percent", "REAL"),
+            ("openai_five_hour_reset_at", "REAL")
+        ]
+        for (name, type) in additions where !columns.contains(name) {
+            guard sqlite3_exec(db, "ALTER TABLE quota_snapshots ADD COLUMN \(name) \(type)", nil, nil, nil) == SQLITE_OK else { return false }
+        }
+        guard sqlite3_exec(db, "COMMIT", nil, nil, nil) == SQLITE_OK else { return false }
+        committed = true
+        return true
     }
 
     private func flooredHour(_ date: Date) -> Date {
@@ -81,19 +114,23 @@ public final class QuotaLedger {
         deepseekInputTokens: Int? = nil,
         openAIInputTokens: Int? = nil,
         openAIEstimatedCostUSD: Double? = nil,
+        fiveHourRemainingPercent: Double? = nil,
+        fiveHourResetDate: Date? = nil,
         source: String
     ) {
         guard let db else { return }
         let h = flooredHour(hour)
         let sql = """
-        INSERT INTO quota_snapshots(hour, deepseek_usd, openai_percent, deepseek_input_tokens, openai_input_tokens, openai_estimated_cost_usd, source, recorded_at)
-        VALUES(?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO quota_snapshots(hour, deepseek_usd, openai_percent, deepseek_input_tokens, openai_input_tokens, openai_estimated_cost_usd, source, recorded_at, openai_five_hour_percent, openai_five_hour_reset_at)
+        VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(hour) DO UPDATE SET
           deepseek_usd = COALESCE(excluded.deepseek_usd, quota_snapshots.deepseek_usd),
           openai_percent = COALESCE(excluded.openai_percent, quota_snapshots.openai_percent),
           deepseek_input_tokens = COALESCE(excluded.deepseek_input_tokens, quota_snapshots.deepseek_input_tokens),
           openai_input_tokens = COALESCE(excluded.openai_input_tokens, quota_snapshots.openai_input_tokens),
           openai_estimated_cost_usd = COALESCE(excluded.openai_estimated_cost_usd, quota_snapshots.openai_estimated_cost_usd),
+          openai_five_hour_percent = COALESCE(excluded.openai_five_hour_percent, quota_snapshots.openai_five_hour_percent),
+          openai_five_hour_reset_at = COALESCE(excluded.openai_five_hour_reset_at, quota_snapshots.openai_five_hour_reset_at),
           source = excluded.source,
           recorded_at = excluded.recorded_at
         """
@@ -127,6 +164,16 @@ public final class QuotaLedger {
         }
         bindText(stmt, index: 7, source)
         bindText(stmt, index: 8, iso(Date()))
+        if let percent = fiveHourRemainingPercent {
+            sqlite3_bind_double(stmt, 9, percent)
+        } else {
+            sqlite3_bind_null(stmt, 9)
+        }
+        if let reset = fiveHourResetDate {
+            sqlite3_bind_double(stmt, 10, reset.timeIntervalSince1970)
+        } else {
+            sqlite3_bind_null(stmt, 10)
+        }
         sqlite3_step(stmt)
         sqlite3_finalize(stmt)
     }
@@ -148,7 +195,7 @@ public final class QuotaLedger {
 
     public func rows(from: Date, to: Date) -> [QuotaSnapshotRow] {
         guard let db else { return [] }
-        let sql = "SELECT hour, deepseek_usd, openai_percent, deepseek_input_tokens, openai_input_tokens, openai_estimated_cost_usd, source FROM quota_snapshots WHERE hour >= ? AND hour < ? ORDER BY hour ASC"
+        let sql = "SELECT hour, deepseek_usd, openai_percent, deepseek_input_tokens, openai_input_tokens, openai_estimated_cost_usd, source, openai_five_hour_percent, openai_five_hour_reset_at FROM quota_snapshots WHERE hour >= ? AND hour < ? ORDER BY hour ASC"
         var stmt: OpaquePointer?
         guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return [] }
         bindText(stmt, index: 1, iso(from))
@@ -163,7 +210,9 @@ public final class QuotaLedger {
             let ot: Int? = sqlite3_column_type(stmt, 4) == SQLITE_NULL ? nil : Int(sqlite3_column_int64(stmt, 4))
             let c: Double? = sqlite3_column_type(stmt, 5) == SQLITE_NULL ? nil : sqlite3_column_double(stmt, 5)
             let src = sqliteText(stmt, index: 6) ?? ""
-            result.append(QuotaSnapshotRow(hour: h, deepseekUSD: d, openaiPercent: p, deepseekInputTokens: dt, openAIInputTokens: ot, openAIEstimatedCostUSD: c, source: src))
+            let fivePercent: Double? = sqlite3_column_type(stmt, 7) == SQLITE_NULL ? nil : sqlite3_column_double(stmt, 7)
+            let fiveReset: Date? = sqlite3_column_type(stmt, 8) == SQLITE_NULL ? nil : Date(timeIntervalSince1970: sqlite3_column_double(stmt, 8))
+            result.append(QuotaSnapshotRow(hour: h, deepseekUSD: d, openaiPercent: p, deepseekInputTokens: dt, openAIInputTokens: ot, openAIEstimatedCostUSD: c, fiveHourRemainingPercent: fivePercent, fiveHourResetDate: fiveReset, source: src))
         }
         sqlite3_finalize(stmt)
         return result
@@ -176,7 +225,7 @@ public final class QuotaLedger {
 
     public func recentSnapshots(limit: Int) -> [QuotaSnapshotRow] {
         guard let db else { return [] }
-        let sql = "SELECT hour, deepseek_usd, openai_percent, deepseek_input_tokens, openai_input_tokens, openai_estimated_cost_usd, source FROM quota_snapshots ORDER BY hour DESC LIMIT ?"
+        let sql = "SELECT hour, deepseek_usd, openai_percent, deepseek_input_tokens, openai_input_tokens, openai_estimated_cost_usd, source, openai_five_hour_percent, openai_five_hour_reset_at FROM quota_snapshots ORDER BY hour DESC LIMIT ?"
         var stmt: OpaquePointer?
         guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return [] }
         sqlite3_bind_int(stmt, 1, Int32(max(0, limit)))
@@ -190,7 +239,9 @@ public final class QuotaLedger {
             let ot: Int? = sqlite3_column_type(stmt, 4) == SQLITE_NULL ? nil : Int(sqlite3_column_int64(stmt, 4))
             let c: Double? = sqlite3_column_type(stmt, 5) == SQLITE_NULL ? nil : sqlite3_column_double(stmt, 5)
             let src = sqliteText(stmt, index: 6) ?? ""
-            result.append(QuotaSnapshotRow(hour: h, deepseekUSD: d, openaiPercent: p, deepseekInputTokens: dt, openAIInputTokens: ot, openAIEstimatedCostUSD: c, source: src))
+            let fivePercent: Double? = sqlite3_column_type(stmt, 7) == SQLITE_NULL ? nil : sqlite3_column_double(stmt, 7)
+            let fiveReset: Date? = sqlite3_column_type(stmt, 8) == SQLITE_NULL ? nil : Date(timeIntervalSince1970: sqlite3_column_double(stmt, 8))
+            result.append(QuotaSnapshotRow(hour: h, deepseekUSD: d, openaiPercent: p, deepseekInputTokens: dt, openAIInputTokens: ot, openAIEstimatedCostUSD: c, fiveHourRemainingPercent: fivePercent, fiveHourResetDate: fiveReset, source: src))
         }
         sqlite3_finalize(stmt)
         return result.reversed()

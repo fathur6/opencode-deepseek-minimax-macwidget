@@ -110,15 +110,15 @@ enum DataFetcher {
         return rowsByDate.values.sorted { $0.date < $1.date }
     }
 
-    static func readSavedMiniMaxBalance() -> Double? {
-        let defaults = UserDefaults(suiteName: "group.com.opencode.widget")
+    static func readSavedMiniMaxBalance(suiteName: String = DataStore.defaultSuiteName) -> Double? {
+        let defaults = UserDefaults(suiteName: suiteName)
         guard let str = defaults?.string(forKey: "minimaxBalance"),
               !str.isEmpty else { return nil }
         return Double(str.replacingOccurrences(of: "$", with: ""))
     }
 
-    static func readSavedMiniMaxCredit() -> Double? {
-        let defaults = UserDefaults(suiteName: "group.com.opencode.widget")
+    static func readSavedMiniMaxCredit(suiteName: String = DataStore.defaultSuiteName) -> Double? {
+        let defaults = UserDefaults(suiteName: suiteName)
         let val = defaults?.double(forKey: "minimaxCredit") ?? 0
         return val > 0 ? val : nil
     }
@@ -130,6 +130,7 @@ enum DataFetcher {
         openAIAuthPath: String = "\(NSHomeDirectory())/.codex/auth.json",
         cacheSuiteName: String = DataStore.defaultSuiteName,
         cacheFileName: String = DataStore.defaultFileName,
+        savedBalanceSuiteName: String = DataStore.defaultSuiteName,
         openAIQuotaFetcher: @escaping @Sendable (String, URLSession, URL) async -> OpenAIQuota? = { authPath, session, endpoint in
             await OpenAIQuotaFetcher.fetch(authPath: authPath, session: session, endpoint: endpoint)
         }
@@ -142,12 +143,12 @@ enum DataFetcher {
         }
 
         guard let creds = AuthReader.readCredentials(authPath: authPath) else {
-            let miniCredit = readSavedMiniMaxCredit()
-            let openAIQuota = await fetchedOpenAIQuotaTask.value ?? previousQuota
+            let miniCredit = readSavedMiniMaxCredit(suiteName: savedBalanceSuiteName)
+            let openAIQuota = mergeQuota(fresh: await fetchedOpenAIQuotaTask.value, cached: previousQuota)
             return WidgetCache(
                 lastUpdated: Date(),
                 deepseek: ProviderBalance(balance: nil, currency: "USD"),
-                minimax: ProviderBalance(balance: miniCredit ?? readSavedMiniMaxBalance(), currency: "USD"),
+                minimax: ProviderBalance(balance: miniCredit ?? readSavedMiniMaxBalance(suiteName: savedBalanceSuiteName), currency: "USD"),
                 minimaxCredit: miniCredit,
                 minimaxCreditFetched: miniCredit != nil ? Date() : nil,
                 dailyUsage: usage,
@@ -171,10 +172,10 @@ enum DataFetcher {
         if let credit = minimaxCredit {
             minimaxCreditVal = credit
         } else {
-            minimaxCreditVal = readSavedMiniMaxCredit()
+            minimaxCreditVal = readSavedMiniMaxCredit(suiteName: savedBalanceSuiteName)
         }
 
-        let minimaxBalance = minimaxCreditVal ?? minimaxUsage.map { Double($0.remainingPrompts) } ?? readSavedMiniMaxBalance()
+        let minimaxBalance = minimaxCreditVal ?? minimaxUsage.map { Double($0.remainingPrompts) } ?? readSavedMiniMaxBalance(suiteName: savedBalanceSuiteName)
 
         return WidgetCache(
             lastUpdated: Date(),
@@ -184,10 +185,24 @@ enum DataFetcher {
             minimaxCredit: minimaxCreditVal,
             minimaxCreditFetched: minimaxCredit != nil ? Date() : nil,
             dailyUsage: usage,
-            openAIQuota: openAIQuota ?? previousQuota,
+            openAIQuota: mergeQuota(fresh: openAIQuota, cached: previousQuota),
             hourlyUsage: [],
             deepseekBalanceHistory: [],
             openAIQuotaHistory: []
         )
+    }
+
+    /// A fresh percent owns its reset, including nil. Never attach a stale
+    /// reset from another observation to an otherwise valid new reading.
+    static func mergeQuota(fresh: OpenAIQuota?, cached: OpenAIQuota?) -> OpenAIQuota? {
+        func valid(_ percent: Double?) -> Bool {
+            guard let percent else { return false }
+            return percent.isFinite && (0...100).contains(percent)
+        }
+        guard fresh != nil || cached != nil else { return nil }
+        let weekly = valid(fresh?.remainingPercent) ? fresh : cached
+        let fiveHour = valid(fresh?.fiveHourRemainingPercent) ? fresh : cached
+        return OpenAIQuota(remainingPercent: weekly?.remainingPercent, resetDate: weekly?.resetDate,
+                           fiveHourRemainingPercent: fiveHour?.fiveHourRemainingPercent, fiveHourResetDate: fiveHour?.fiveHourResetDate)
     }
 }

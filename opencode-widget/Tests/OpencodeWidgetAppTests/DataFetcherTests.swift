@@ -8,12 +8,14 @@ class MockURLProtocol: URLProtocol {
     nonisolated(unsafe) static var defaultData: Data?
     nonisolated(unsafe) static var defaultError: Error?
     nonisolated(unsafe) static var defaultStatusCode: Int = 200
+    nonisolated(unsafe) static var quotaRequestCount = 0
 
     override class func canInit(with request: URLRequest) -> Bool { true }
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
 
     override func startLoading() {
         let urlStr = request.url?.absoluteString ?? ""
+        if urlStr == OpenAIQuotaFetcher.usageURL.absoluteString { Self.quotaRequestCount += 1 }
         let response: (data: Data?, error: Error?, statusCode: Int)
         if let match = Self.responses[urlStr] {
             response = match
@@ -40,7 +42,6 @@ final class DataFetcherTests: XCTestCase {
     var tempDBPath: String!
     var tempAuthPath: String!
     var tempCachePath: String!
-    var originalWidgetDefaults: [String: Any]?
 
     override func setUp() {
         super.setUp()
@@ -52,30 +53,20 @@ final class DataFetcherTests: XCTestCase {
         try? FileManager.default.removeItem(atPath: tempDBPath)
         try? FileManager.default.removeItem(atPath: tempAuthPath)
         try? FileManager.default.removeItem(atPath: tempCachePath)
-        let defaults = UserDefaults(suiteName: "group.com.opencode.widget")
-        originalWidgetDefaults = defaults?.persistentDomain(forName: "group.com.opencode.widget")
-        defaults?.removeObject(forKey: "minimaxBalance")
-        defaults?.removeObject(forKey: "minimaxCredit")
         MockURLProtocol.responses = [:]
         MockURLProtocol.defaultData = nil
         MockURLProtocol.defaultError = nil
         MockURLProtocol.defaultStatusCode = 200
+        MockURLProtocol.quotaRequestCount = 0
     }
 
     override func tearDown() {
         try? FileManager.default.removeItem(atPath: tempDBPath)
         try? FileManager.default.removeItem(atPath: tempAuthPath)
         try? FileManager.default.removeItem(atPath: tempCachePath)
-        let defaults = UserDefaults(suiteName: "group.com.opencode.widget")
-        if let originalWidgetDefaults {
-            defaults?.setPersistentDomain(originalWidgetDefaults, forName: "group.com.opencode.widget")
-        } else {
-            defaults?.removePersistentDomain(forName: "group.com.opencode.widget")
-        }
         tempDBPath = nil
         tempAuthPath = nil
         tempCachePath = nil
-        originalWidgetDefaults = nil
         MockURLProtocol.responses = [:]
         MockURLProtocol.defaultData = nil
         MockURLProtocol.defaultError = nil
@@ -282,7 +273,7 @@ final class DataFetcherTests: XCTestCase {
         config.protocolClasses = [MockURLProtocol.self]
         let session = URLSession(configuration: config)
 
-        let cache = await DataFetcher.refreshAll(dbPath: tempDBPath, authPath: tempAuthPath, session: session)
+        let cache = await DataFetcher.refreshAll(dbPath: tempDBPath, authPath: tempAuthPath, session: session, openAIAuthPath: tempAuthPath, cacheSuiteName: tempCachePath, savedBalanceSuiteName: "fixture-\(UUID().uuidString)", openAIQuotaFetcher: { _, _, _ in nil })
 
         XCTAssertEqual(cache.deepseek.balance, 42.00)
         XCTAssertEqual(cache.minimaxUsage?.remainingPrompts, 145)
@@ -299,7 +290,7 @@ final class DataFetcherTests: XCTestCase {
         config.protocolClasses = [MockURLProtocol.self]
         let session = URLSession(configuration: config)
 
-        let cache = await DataFetcher.refreshAll(dbPath: tempDBPath, authPath: tempAuthPath, session: session)
+        let cache = await DataFetcher.refreshAll(dbPath: tempDBPath, authPath: tempAuthPath, session: session, openAIAuthPath: tempAuthPath, cacheSuiteName: tempCachePath, savedBalanceSuiteName: "fixture-\(UUID().uuidString)", openAIQuotaFetcher: { _, _, _ in nil })
 
         XCTAssertNil(cache.deepseek.balance)
         XCTAssertNil(cache.minimax.balance)
@@ -312,7 +303,7 @@ final class DataFetcherTests: XCTestCase {
         config.protocolClasses = [MockURLProtocol.self]
         let session = URLSession(configuration: config)
 
-        let cache = await DataFetcher.refreshAll(dbPath: tempDBPath, authPath: tempAuthPath, session: session)
+        let cache = await DataFetcher.refreshAll(dbPath: tempDBPath, authPath: tempAuthPath, session: session, openAIAuthPath: tempAuthPath, cacheSuiteName: tempCachePath, savedBalanceSuiteName: "fixture-\(UUID().uuidString)", openAIQuotaFetcher: { _, _, _ in nil })
 
         XCTAssertNil(cache.deepseek.balance)
         XCTAssertNil(cache.minimax.balance)
@@ -328,8 +319,10 @@ final class DataFetcherTests: XCTestCase {
         let cache = await DataFetcher.refreshAll(
             dbPath: tempDBPath,
             authPath: tempAuthPath,
+            session: makeSession(),
             openAIAuthPath: "/tmp/test-codex-auth.json",
             cacheSuiteName: tempCachePath,
+            savedBalanceSuiteName: "fixture-\(UUID().uuidString)",
             openAIQuotaFetcher: { _, _, _ in expected }
         )
 
@@ -343,8 +336,10 @@ final class DataFetcherTests: XCTestCase {
         let cache = await DataFetcher.refreshAll(
             dbPath: tempDBPath,
             authPath: tempAuthPath,
+            session: makeSession(),
             openAIAuthPath: "/tmp/test-codex-auth.json",
             cacheSuiteName: tempCachePath,
+            savedBalanceSuiteName: "fixture-\(UUID().uuidString)",
             openAIQuotaFetcher: { _, _, _ in nil }
         )
 
@@ -362,7 +357,10 @@ final class DataFetcherTests: XCTestCase {
         let cache = await DataFetcher.refreshAll(
             dbPath: tempDBPath,
             authPath: tempAuthPath,
+            session: makeSession(),
+            openAIAuthPath: tempAuthPath,
             cacheSuiteName: tempCachePath,
+            savedBalanceSuiteName: "fixture-\(UUID().uuidString)",
             openAIQuotaFetcher: { _, _, _ in nil }
         )
 
@@ -372,6 +370,63 @@ final class DataFetcherTests: XCTestCase {
     }
 
     // MARK: - Helpers
+
+    func testRefreshMergesWindowsAsPairsInBothCredentialBranchesWithOneFetch() async throws {
+        actor Counter {
+            var calls = 0
+            func record() { calls += 1 }
+        }
+        let weekReset = Date(timeIntervalSince1970: 1_800_000_000)
+        let fiveReset = weekReset.addingTimeInterval(-100_000)
+        let old = OpenAIQuota(remainingPercent: 40, resetDate: weekReset, fiveHourRemainingPercent: 70, fiveHourResetDate: fiveReset)
+        let cases: [(OpenAIQuota?, OpenAIQuota)] = [
+            (nil, old),
+            (OpenAIQuota(remainingPercent: 0), OpenAIQuota(remainingPercent: 0, fiveHourRemainingPercent: 70, fiveHourResetDate: fiveReset)),
+            (OpenAIQuota(fiveHourRemainingPercent: 80), OpenAIQuota(remainingPercent: 40, resetDate: weekReset, fiveHourRemainingPercent: 80)),
+            (OpenAIQuota(remainingPercent: 90, resetDate: weekReset, fiveHourRemainingPercent: 100, fiveHourResetDate: fiveReset), OpenAIQuota(remainingPercent: 90, resetDate: weekReset, fiveHourRemainingPercent: 100, fiveHourResetDate: fiveReset))
+        ]
+        for hasAuth in [false, true] {
+            if hasAuth {
+                try #"{"deepseek":{"key":"fixture"},"minimax":{"key":"fixture"}}"#.write(toFile: tempAuthPath, atomically: true, encoding: .utf8)
+            }
+            for (fresh, expected) in cases {
+                DataStore.save(cache: WidgetCache(openAIQuota: old), suiteName: tempCachePath)
+                let count = Counter()
+                let result = await DataFetcher.refreshAll(dbPath: tempDBPath, authPath: tempAuthPath, session: makeSession(), openAIAuthPath: tempAuthPath, cacheSuiteName: tempCachePath, savedBalanceSuiteName: "fixture-\(UUID().uuidString)", openAIQuotaFetcher: { _, _, _ in
+                    await count.record()
+                    return fresh
+                })
+                XCTAssertEqual(result.openAIQuota, expected)
+                let calls = await count.calls
+                XCTAssertEqual(calls, 1)
+            }
+        }
+    }
+
+    func testFirstRunMissingQuotaIsNil() async {
+        let result = await DataFetcher.refreshAll(dbPath: tempDBPath, authPath: tempAuthPath, session: makeSession(), openAIAuthPath: tempAuthPath, cacheSuiteName: tempCachePath, savedBalanceSuiteName: "fixture-\(UUID().uuidString)", openAIQuotaFetcher: { _, _, _ in nil })
+        XCTAssertNil(result.openAIQuota)
+    }
+
+    func testHTTPAuthJSONAndTransportFailuresKeepBothCachedWindows() async throws {
+        let codexPath = tempAuthPath + "-codex"
+        defer { try? FileManager.default.removeItem(atPath: codexPath) }
+        try #"{"tokens":{"access_token":"synthetic-token","account_id":"fixture"}}"#.write(toFile: codexPath, atomically: true, encoding: .utf8)
+        let old = OpenAIQuota(remainingPercent: 40, resetDate: Date(timeIntervalSince1970: 1_800_000_000), fiveHourRemainingPercent: 70, fiveHourResetDate: Date(timeIntervalSince1970: 1_799_900_000))
+        for hasAuth in [false, true] {
+            if hasAuth {
+                try #"{"deepseek":{"key":"fixture"},"minimax":{"key":"fixture"}}"#.write(toFile: tempAuthPath, atomically: true, encoding: .utf8)
+            }
+            for (code, data, error) in [(401, "{}", nil as Error?), (500, "{}", nil), (200, "invalid-json", nil), (200, "{}", URLError(.notConnectedToInternet))] {
+                DataStore.save(cache: WidgetCache(openAIQuota: old), suiteName: tempCachePath)
+                MockURLProtocol.responses[OpenAIQuotaFetcher.usageURL.absoluteString] = (Data(data.utf8), error, code)
+                MockURLProtocol.quotaRequestCount = 0
+                let result = await DataFetcher.refreshAll(dbPath: tempDBPath, authPath: tempAuthPath, session: makeSession(), openAIAuthPath: codexPath, cacheSuiteName: tempCachePath, savedBalanceSuiteName: "fixture-\(UUID().uuidString)")
+                XCTAssertEqual(result.openAIQuota, old)
+                XCTAssertEqual(MockURLProtocol.quotaRequestCount, 1)
+            }
+        }
+    }
 
     private func makeSession() -> URLSession {
         let config = URLSessionConfiguration.ephemeral

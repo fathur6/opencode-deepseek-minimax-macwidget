@@ -5,11 +5,32 @@ import OpencodeWidgetShared
 
 @MainActor
 final class QuotaLedgerServiceTests: XCTestCase {
+    func testFiveHourOnlyRefreshPersistsAndSeedingPreservesQuotaWithoutWeeklyHistory() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("five-hour-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let service = QuotaLedgerService(ledgerPath: dir.appendingPathComponent("quota.db").path, now: { now }, hourlyTotals: { nil }, deepseekHourlyTotals: { nil })
+        let quota = OpenAIQuota(fiveHourRemainingPercent: 80, fiveHourResetDate: now.addingTimeInterval(18000))
+        let cache = WidgetCache(openAIQuota: quota)
+        service.recordRefresh(cache: cache)
+        let row = try XCTUnwrap(service.ledger.recentSnapshots(limit: 1).first)
+        XCTAssertEqual(row.fiveHourRemainingPercent, 80)
+        XCTAssertEqual(row.fiveHourResetDate, quota.fiveHourResetDate)
+        XCTAssertNil(row.openaiPercent)
+        XCTAssertEqual(row.source, "openai")
+        let seeded = service.seededCache(from: cache)
+        XCTAssertEqual(seeded.openAIQuota, quota)
+        XCTAssertTrue(seeded.openAIQuotaHistory.isEmpty)
+
+        let both = OpenAIQuota(remainingPercent: 40, resetDate: now.addingTimeInterval(604800), fiveHourRemainingPercent: 60, fiveHourResetDate: now.addingTimeInterval(9000))
+        service.recordRefresh(cache: WidgetCache(openAIQuota: both))
+        XCTAssertEqual(service.seededCache(from: WidgetCache(openAIQuota: both)).openAIQuotaHistory.map(\.remainingPercent), [40])
+    }
     func testOpenCreatesLedger() {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("qs-\(UUID().uuidString)")
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         let path = dir.appendingPathComponent("quota.db").path
-        let service = QuotaLedgerService(ledgerPath: path)
+        let service = QuotaLedgerService(ledgerPath: path, hourlyTotals: { nil }, deepseekHourlyTotals: { nil })
         XCTAssertNotNil(service.ledger)
         XCTAssertEqual(service.ledger.count(), 0)
     }
@@ -18,7 +39,7 @@ final class QuotaLedgerServiceTests: XCTestCase {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("qs2-\(UUID().uuidString)")
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         let path = dir.appendingPathComponent("quota.db").path
-        let service = QuotaLedgerService(ledgerPath: path)
+        let service = QuotaLedgerService(ledgerPath: path, hourlyTotals: { nil }, deepseekHourlyTotals: { nil })
 
         let hour = Date(timeIntervalSince1970: 1_800_000_000)
         let cache = WidgetCache(
@@ -39,7 +60,7 @@ final class QuotaLedgerServiceTests: XCTestCase {
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         let path = dir.appendingPathComponent("quota.db").path
         let now = Date(timeIntervalSince1970: 1_800_000_123)
-        let service = QuotaLedgerService(ledgerPath: path, now: { now }, hourlyTotals: { nil })
+        let service = QuotaLedgerService(ledgerPath: path, now: { now }, hourlyTotals: { nil }, deepseekHourlyTotals: { nil })
         service.ledger.record(
             hour: now,
             deepseekUSD: nil,
