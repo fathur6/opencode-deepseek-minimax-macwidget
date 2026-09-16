@@ -48,6 +48,10 @@ Progress: [░░░░░░░░░░] 0%
 
 ## Accumulated Context
 
+### Roadmap Evolution
+
+- Phase 5 added: Settings: Provider Display Preferences
+
 ### Decisions
 
 Decisions are logged in PROJECT.md Key Decisions table.
