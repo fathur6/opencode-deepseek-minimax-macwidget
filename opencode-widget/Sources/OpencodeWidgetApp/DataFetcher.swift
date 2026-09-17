@@ -131,6 +131,7 @@ enum DataFetcher {
         cacheSuiteName: String = DataStore.defaultSuiteName,
         cacheFileName: String = DataStore.defaultFileName,
         savedBalanceSuiteName: String = DataStore.defaultSuiteName,
+        credentialResolver: ProviderCredentialResolver? = nil,
         openAIQuotaFetcher: @escaping @Sendable (String, URLSession, URL) async -> OpenAIQuota? = { authPath, session, endpoint in
             await OpenAIQuotaFetcher.fetch(authPath: authPath, session: session, endpoint: endpoint)
         }
@@ -141,29 +142,15 @@ enum DataFetcher {
         let fetchedOpenAIQuotaTask = Task {
             await openAIQuotaFetcher(openAIAuthPath, session, openAIUsageURL)
         }
+        let resolver = credentialResolver ?? ProviderCredentialResolver(authPath: authPath)
 
-        guard let creds = AuthReader.readCredentials(authPath: authPath) else {
-            let miniCredit = readSavedMiniMaxCredit(suiteName: savedBalanceSuiteName)
-            let openAIQuota = mergeQuota(fresh: await fetchedOpenAIQuotaTask.value, cached: previousQuota)
-            return WidgetCache(
-                lastUpdated: Date(),
-                deepseek: ProviderBalance(balance: nil, currency: "USD"),
-                minimax: ProviderBalance(balance: miniCredit ?? readSavedMiniMaxBalance(suiteName: savedBalanceSuiteName), currency: "USD"),
-                minimaxCredit: miniCredit,
-                minimaxCreditFetched: miniCredit != nil ? Date() : nil,
-                dailyUsage: usage,
-                openAIQuota: openAIQuota,
-                hourlyUsage: [],
-                deepseekBalanceHistory: [],
-                openAIQuotaHistory: []
-            )
-        }
+        async let deepseekKey = resolver.resolve(.deepseek)
+        async let minimaxKey = resolver.resolve(.minimax)
+        let (resolvedDeepseekKey, resolvedMiniMaxKey) = await (deepseekKey, minimaxKey)
 
-        let dk = creds.deepseekKey
-        let mk = creds.minimaxKey
-        async let dsBalance = fetchDeepseekBalance(apiKey: dk, session: session)
-        async let mmCredit = fetchMiniMaxCredit(apiKey: mk, session: session)
-        async let mmUsage = fetchMiniMaxUsage(apiKey: mk, session: session)
+        async let dsBalance = fetchDeepseekBalance(apiKey: resolvedDeepseekKey, session: session)
+        async let mmCredit = fetchMiniMaxCredit(apiKey: resolvedMiniMaxKey, session: session)
+        async let mmUsage = fetchMiniMaxUsage(apiKey: resolvedMiniMaxKey, session: session)
 
         let (deepseekBalance, minimaxCredit, minimaxUsage) = await (dsBalance, mmCredit, mmUsage)
         let openAIQuota = await fetchedOpenAIQuotaTask.value
@@ -183,13 +170,28 @@ enum DataFetcher {
             minimax: ProviderBalance(balance: minimaxBalance, currency: "USD"),
             minimaxUsage: minimaxUsage,
             minimaxCredit: minimaxCreditVal,
-            minimaxCreditFetched: minimaxCredit != nil ? Date() : nil,
+            minimaxCreditFetched: minimaxCredit != nil || (resolvedMiniMaxKey == nil && minimaxCreditVal != nil) ? Date() : nil,
             dailyUsage: usage,
             openAIQuota: mergeQuota(fresh: openAIQuota, cached: previousQuota),
             hourlyUsage: [],
             deepseekBalanceHistory: [],
             openAIQuotaHistory: []
         )
+    }
+
+    private static func fetchDeepseekBalance(apiKey: String?, session: URLSession) async -> Double? {
+        guard let apiKey else { return nil }
+        return await fetchDeepseekBalance(apiKey: apiKey, session: session)
+    }
+
+    private static func fetchMiniMaxCredit(apiKey: String?, session: URLSession) async -> Double? {
+        guard let apiKey else { return nil }
+        return await fetchMiniMaxCredit(apiKey: apiKey, session: session)
+    }
+
+    private static func fetchMiniMaxUsage(apiKey: String?, session: URLSession) async -> MiniMaxUsage? {
+        guard let apiKey else { return nil }
+        return await fetchMiniMaxUsage(apiKey: apiKey, session: session)
     }
 
     /// A fresh percent owns its reset, including nil. Never attach a stale
