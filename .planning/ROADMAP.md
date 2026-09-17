@@ -103,9 +103,16 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 **Plans:** 5 plans
 
 Plans:
+**Wave 1**
 
 - [ ] 05-01-PLAN.md — Typed display preferences and fixed compact-card layout
 - [ ] 05-02-PLAN.md — Keychain-first per-provider credential resolution
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 05-03-PLAN.md — Independent collection without display-state coupling
 - [ ] 05-04-PLAN.md — Native Providers Settings and secure setup interaction
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
 - [ ] 05-05-PLAN.md — Automated and live native macOS verification gate

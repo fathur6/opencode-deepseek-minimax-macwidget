@@ -321,14 +321,13 @@ Source: [CITED: https://developer.apple.com/documentation/security/secitemadd(_:
 
 | # | Claim | Section | Risk if Wrong |
 |---|-------|---------|---------------|
-| A1 | A single generic-password Keychain service with stable provider-specific account values is the preferred naming shape; exact strings remain agent discretion. [ASSUMED] | Architecture Patterns | Existing released builds could retain stale credentials if identifiers are renamed later; lock names before implementation and test with a fresh service namespace. |
+| A1 | A single generic-password Keychain service with stable provider-specific account values is the preferred naming shape. The release contract is service `com.fathur6.opencode-widget.provider-credentials` with `deepseek-api-key` and `minimax-api-key` accounts. [RESOLVED] | Architecture Patterns | Existing released builds could retain stale credentials if identifiers are renamed later; keep these identifiers stable and test with a fresh service namespace. |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **What exact Keychain service and account identifiers should become the release contract?**
-   - What we know: Generic-password identity supports a stable service/account pair, and phase context delegates exact names to the agent. [CITED: https://developer.apple.com/documentation/security/ksecclassgenericpassword.md] [CITED: 05-CONTEXT.md]
-   - What's unclear: No existing app-managed Keychain namespace exists in the repository.
-   - Recommendation: Plan one explicit constant service name plus `deepseek` and `minimax` account constants, never derive them from display labels, and treat them as migration-stable after release.
+1. **What exact Keychain service and account identifiers become the release contract?**
+    - **Resolved:** Use `com.fathur6.opencode-widget.provider-credentials` for `kSecAttrService`, `deepseek-api-key` for the DeepSeek `kSecAttrAccount`, and `minimax-api-key` for the MiniMax `kSecAttrAccount`.
+    - Rationale: Generic-password identity supports stable service/account pairs; these explicit constants are independent of UI labels and must remain migration-stable after release. [CITED: https://developer.apple.com/documentation/security/ksecclassgenericpassword.md] [CITED: 05-CONTEXT.md]
 
 ## Environment Availability
 
