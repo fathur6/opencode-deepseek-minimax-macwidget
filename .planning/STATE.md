@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 05
 current_phase_name: settings-provider-display-preferences
 status: executing
-stopped_at: Completed 05-01-PLAN.md
-last_updated: "2026-09-17T15:17:45.391Z"
+stopped_at: Completed 05-02-PLAN.md
+last_updated: "2026-09-17T22:45:02.923Z"
 last_activity: 2026-09-17
 last_activity_desc: Phase 05 execution started
 progress:
   total_phases: 5
   completed_phases: 0
   total_plans: 5
-  completed_plans: 1
+  completed_plans: 2
   percent: 0
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-08-09)
 ## Current Position
 
 Phase: 05 (settings-provider-display-preferences) — EXECUTING
-Plan: 2 of 5
+Plan: 3 of 5
 Status: Ready to execute
 Last activity: 2026-09-17 — Phase 05 execution started
 
@@ -56,6 +56,7 @@ Progress: [░░░░░░░░░░] 0%
 
 *Updated after each plan completion*
 | Phase 05 P01 | 2 min | 2 tasks | 2 files |
+| Phase 05 P02 | 12min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -77,6 +78,8 @@ Recent decisions affecting current work:
 - [Roadmap]: Preserve the branch's stale-while-revalidate fallback (`previousQuota ?? fetched`).
 - [Phase 05]: Typed per-provider UserDefaults Booleans default missing or malformed visibility values to visible. — Preserves default-visible behavior without storing presentation state in cache or secrets.
 - [Phase 05]: ProviderCardLayout filters fixed ProviderID case order and returns an empty sequence for charts-only mode. — Preserves DeepSeek, MiniMax, OpenAI order while keeping visibility presentation-only.
+- [Phase 05]: Use explicit, release-stable service and account constants for generic-password Keychain items rather than UI-derived names.
+- [Phase 05]: Resolve each provider independently from Keychain first, then read only its matching legacy auth value without legacy mutation APIs.
 
 ### Pending Todos
 
@@ -107,6 +110,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-09-17T15:17:45.387Z
-Stopped at: Completed 05-01-PLAN.md
+Last session: 2026-09-17T22:45:02.919Z
+Stopped at: Completed 05-02-PLAN.md
 Resume file: None
