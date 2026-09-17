@@ -100,7 +100,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 **Goal:** Users can configure visible provider cards and securely connect their own provider accounts from a native Settings window, making the downloadable DMG usable without an existing OpenCode installation.
 **Requirements**: SETTINGS-01, SETTINGS-02, SETTINGS-03, SETTINGS-04, SETTINGS-05, SETTINGS-06, SETTINGS-07
 **Depends on:** Phase 4
-**Plans:** 2/5 plans executed
+**Plans:** 3/5 plans executed
 
 Plans:
 **Wave 1**
@@ -110,7 +110,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 05-03-PLAN.md — Independent collection without display-state coupling
+- [x] 05-03-PLAN.md — Independent collection without display-state coupling
 - [ ] 05-04-PLAN.md — Native Providers Settings and secure setup interaction
 
 **Wave 3** *(blocked on Wave 2 completion)*

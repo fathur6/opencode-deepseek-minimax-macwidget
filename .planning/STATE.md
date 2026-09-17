@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 05
 current_phase_name: settings-provider-display-preferences
 status: executing
-stopped_at: Completed 05-02-PLAN.md
-last_updated: "2026-09-17T22:45:02.923Z"
+stopped_at: Completed 05-03-PLAN.md
+last_updated: "2026-09-17T22:53:14.237Z"
 last_activity: 2026-09-17
 last_activity_desc: Phase 05 execution started
 progress:
   total_phases: 5
   completed_phases: 0
   total_plans: 5
-  completed_plans: 2
+  completed_plans: 3
   percent: 0
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-08-09)
 ## Current Position
 
 Phase: 05 (settings-provider-display-preferences) — EXECUTING
-Plan: 3 of 5
+Plan: 4 of 5
 Status: Ready to execute
 Last activity: 2026-09-17 — Phase 05 execution started
 
@@ -57,6 +57,7 @@ Progress: [░░░░░░░░░░] 0%
 *Updated after each plan completion*
 | Phase 05 P01 | 2 min | 2 tasks | 2 files |
 | Phase 05 P02 | 12min | 2 tasks | 4 files |
+| Phase 05 P03 | 4min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -80,6 +81,8 @@ Recent decisions affecting current work:
 - [Phase 05]: ProviderCardLayout filters fixed ProviderID case order and returns an empty sequence for charts-only mode. — Preserves DeepSeek, MiniMax, OpenAI order while keeping visibility presentation-only.
 - [Phase 05]: Use explicit, release-stable service and account constants for generic-password Keychain items rather than UI-derived names.
 - [Phase 05]: Resolve each provider independently from Keychain first, then read only its matching legacy auth value without legacy mutation APIs.
+- [Phase 05]: Use an optional ProviderCredentialResolver injection seam while constructing the Keychain-first resolver from the existing auth path in production. — This keeps production refresh behavior compatible with the existing legacy-auth path while allowing in-memory resolver fixtures that never access the host Keychain.
+- [Phase 05]: Resolve DeepSeek and MiniMax once each before issuing only their selected endpoint calls; do not route card visibility into refresh. — Per-provider resolution preserves independent credential collection while retaining the existing cache, ledger, chart, and OpenAI quota data path.
 
 ### Pending Todos
 
@@ -110,6 +113,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-09-17T22:45:02.919Z
-Stopped at: Completed 05-02-PLAN.md
+Last session: 2026-09-17T22:52:52.815Z
+Stopped at: Completed 05-03-PLAN.md
 Resume file: None
