@@ -100,12 +100,12 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 **Goal:** Users can configure visible provider cards and securely connect their own provider accounts from a native Settings window, making the downloadable DMG usable without an existing OpenCode installation.
 **Requirements**: SETTINGS-01, SETTINGS-02, SETTINGS-03, SETTINGS-04, SETTINGS-05, SETTINGS-06, SETTINGS-07
 **Depends on:** Phase 4
-**Plans:** 5 plans
+**Plans:** 1/5 plans executed
 
 Plans:
 **Wave 1**
 
-- [ ] 05-01-PLAN.md — Typed display preferences and fixed compact-card layout
+- [x] 05-01-PLAN.md — Typed display preferences and fixed compact-card layout
 - [ ] 05-02-PLAN.md — Keychain-first per-provider credential resolution
 
 **Wave 2** *(blocked on Wave 1 completion)*

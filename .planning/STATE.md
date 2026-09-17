@@ -2,18 +2,18 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_phase: 1
-current_phase_name: Port OpenAI Quota Data Layer
+current_phase: 05
+current_phase_name: settings-provider-display-preferences
 status: executing
-stopped_at: Phase 5 context gathered
-last_updated: "2026-09-17T15:09:37.812Z"
-last_activity: 2026-08-09
-last_activity_desc: Roadmap created (4 phases, 12/12 requirements mapped)
+stopped_at: Completed 05-01-PLAN.md
+last_updated: "2026-09-17T15:17:45.391Z"
+last_activity: 2026-09-17
+last_activity_desc: Phase 05 execution started
 progress:
   total_phases: 5
   completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
+  total_plans: 5
+  completed_plans: 1
   percent: 0
 ---
 
@@ -24,14 +24,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-09)
 
 **Core value:** Show the user their remaining AI budget and when it resets, at a glance from the menu bar — with zero interaction required.
-**Current focus:** Phase 1 — Port OpenAI Quota Data Layer
+**Current focus:** Phase 05 — settings-provider-display-preferences
 
 ## Current Position
 
-Phase: 1 of 4 (Port OpenAI Quota Data Layer)
-Plan: 0 of TBD in current phase
+Phase: 05 (settings-provider-display-preferences) — EXECUTING
+Plan: 2 of 5
 Status: Ready to execute
-Last activity: 2026-08-09 — Roadmap created (4 phases, 12/12 requirements mapped)
+Last activity: 2026-09-17 — Phase 05 execution started
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -55,6 +55,7 @@ Progress: [░░░░░░░░░░] 0%
 - Trend: N/A
 
 *Updated after each plan completion*
+| Phase 05 P01 | 2 min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -74,6 +75,8 @@ Recent decisions affecting current work:
 - [Roadmap]: `QuotaResetTimeline` stays pure (SwiftUI-free) in `OpencodeWidgetShared`; rounding at display only, clamped 0...168. — Pitfall #2
 - [Roadmap]: Do NOT import `OpencodeUsageTrackerApp` components (separate SwiftPM executable, not in the XcodeGen target). — Anti-Pattern 2
 - [Roadmap]: Preserve the branch's stale-while-revalidate fallback (`previousQuota ?? fetched`).
+- [Phase 05]: Typed per-provider UserDefaults Booleans default missing or malformed visibility values to visible. — Preserves default-visible behavior without storing presentation state in cache or secrets.
+- [Phase 05]: ProviderCardLayout filters fixed ProviderID case order and returns an empty sequence for charts-only mode. — Preserves DeepSeek, MiniMax, OpenAI order while keeping visibility presentation-only.
 
 ### Pending Todos
 
@@ -104,6 +107,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-09-16T12:34:52.871Z
-Stopped at: Phase 5 context gathered
-Resume file: .planning/phases/05-settings-provider-display-preferences/05-CONTEXT.md
+Last session: 2026-09-17T15:17:45.387Z
+Stopped at: Completed 05-01-PLAN.md
+Resume file: None
