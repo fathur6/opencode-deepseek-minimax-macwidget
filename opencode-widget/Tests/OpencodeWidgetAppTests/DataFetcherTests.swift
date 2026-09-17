@@ -9,12 +9,14 @@ class MockURLProtocol: URLProtocol {
     nonisolated(unsafe) static var defaultError: Error?
     nonisolated(unsafe) static var defaultStatusCode: Int = 200
     nonisolated(unsafe) static var quotaRequestCount = 0
+    nonisolated(unsafe) static var requestedURLs: [String] = []
 
     override class func canInit(with request: URLRequest) -> Bool { true }
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
 
     override func startLoading() {
         let urlStr = request.url?.absoluteString ?? ""
+        Self.requestedURLs.append(urlStr)
         if urlStr == OpenAIQuotaFetcher.usageURL.absoluteString { Self.quotaRequestCount += 1 }
         let response: (data: Data?, error: Error?, statusCode: Int)
         if let match = Self.responses[urlStr] {
@@ -58,6 +60,7 @@ final class DataFetcherTests: XCTestCase {
         MockURLProtocol.defaultError = nil
         MockURLProtocol.defaultStatusCode = 200
         MockURLProtocol.quotaRequestCount = 0
+        MockURLProtocol.requestedURLs = []
     }
 
     override func tearDown() {
@@ -70,6 +73,7 @@ final class DataFetcherTests: XCTestCase {
         MockURLProtocol.responses = [:]
         MockURLProtocol.defaultData = nil
         MockURLProtocol.defaultError = nil
+        MockURLProtocol.requestedURLs = []
         super.tearDown()
     }
 
@@ -369,6 +373,106 @@ final class DataFetcherTests: XCTestCase {
         XCTAssertTrue(cache.openAIQuotaHistory.isEmpty)
     }
 
+    func testRefreshAllFetchesDeepSeekWithoutMiniMaxCredential() async {
+        createDB()
+        insertSession(dayOffset: 0, provider: "deepseek", tokensInput: 100, tokensOutput: 50, cost: 1.5, modelString: "{\"providerID\": \"deepseek\"}")
+        MockURLProtocol.responses[DataFetcher.deepseekBalanceURL.absoluteString] = (
+            #"{"balance_infos":[{"total_balance":"42.00"}]}"#.data(using: .utf8), nil, 200
+        )
+        let expectedQuota = OpenAIQuota(remainingPercent: 90, resetDate: Date(timeIntervalSince1970: 1_800_000_000))
+        let quotaCalls = RefreshCallCounter()
+
+        let cache = await DataFetcher.refreshAll(
+            dbPath: tempDBPath,
+            authPath: tempAuthPath,
+            session: makeSession(),
+            openAIAuthPath: tempAuthPath,
+            cacheSuiteName: tempCachePath,
+            savedBalanceSuiteName: "fixture-\(UUID().uuidString)",
+            credentialResolver: makeResolver(deepseek: "deepseek-only", minimax: nil),
+            openAIQuotaFetcher: { _, _, _ in
+                await quotaCalls.record()
+                return expectedQuota
+            }
+        )
+
+        XCTAssertEqual(MockURLProtocol.requestedURLs, [DataFetcher.deepseekBalanceURL.absoluteString])
+        XCTAssertEqual(cache.deepseek.balance, 42)
+        XCTAssertNil(cache.minimax.balance)
+        XCTAssertNil(cache.minimaxUsage)
+        XCTAssertEqual(cache.dailyUsage, [DailyUsageRow(date: cache.dailyUsage[0].date, deepseekTokens: 150, deepseekCost: 1.5)])
+        XCTAssertEqual(cache.openAIQuota, expectedQuota)
+        let calls = await quotaCalls.calls
+        XCTAssertEqual(calls, 1)
+    }
+
+    func testRefreshAllFetchesMiniMaxWithoutDeepSeekCredential() async {
+        MockURLProtocol.responses = [
+            DataFetcher.minimaxCreditURL.absoluteString: (#"{"available_amount":"12.50"}"#.data(using: .utf8), nil, 200),
+            DataFetcher.minimaxUsageURL.absoluteString: (#"{"modelRemains":[{"currentIntervalTotalCount":200,"currentIntervalRemainingCount":145}]}"#.data(using: .utf8), nil, 200),
+        ]
+
+        let cache = await DataFetcher.refreshAll(
+            dbPath: tempDBPath,
+            authPath: tempAuthPath,
+            session: makeSession(),
+            openAIAuthPath: tempAuthPath,
+            cacheSuiteName: tempCachePath,
+            savedBalanceSuiteName: "fixture-\(UUID().uuidString)",
+            credentialResolver: makeResolver(deepseek: nil, minimax: "minimax-only"),
+            openAIQuotaFetcher: { _, _, _ in nil }
+        )
+
+        XCTAssertEqual(Set(MockURLProtocol.requestedURLs), [
+            DataFetcher.minimaxCreditURL.absoluteString,
+            DataFetcher.minimaxUsageURL.absoluteString,
+        ])
+        XCTAssertEqual(cache.minimaxCredit, 12.5)
+        XCTAssertEqual(cache.minimax.balance, 12.5)
+        XCTAssertEqual(cache.minimaxUsage, MiniMaxUsage(remainingPrompts: 145, totalPrompts: 200))
+        XCTAssertNil(cache.deepseek.balance)
+    }
+
+    func testRefreshAllIgnoresAllCardVisibilityPreferences() async {
+        createDB()
+        insertSession(dayOffset: 0, provider: "deepseek", tokensInput: 100, tokensOutput: 50, cost: 1.5, modelString: "{\"providerID\": \"deepseek\"}")
+        let preferenceSuite = "DataFetcherDisplayIsolation-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: preferenceSuite)!
+        defer { defaults.removePersistentDomain(forName: preferenceSuite) }
+        let preferences = ProviderDisplayPreferences(defaults: defaults)
+        let expectedQuota = OpenAIQuota(remainingPercent: 90, resetDate: Date(timeIntervalSince1970: 1_800_000_000))
+        MockURLProtocol.responses = [
+            DataFetcher.deepseekBalanceURL.absoluteString: (#"{"balance_infos":[{"total_balance":"42.00"}]}"#.data(using: .utf8), nil, 200),
+            DataFetcher.minimaxCreditURL.absoluteString: (#"{"available_amount":"12.50"}"#.data(using: .utf8), nil, 200),
+            DataFetcher.minimaxUsageURL.absoluteString: (#"{"modelRemains":[{"currentIntervalTotalCount":200,"currentIntervalRemainingCount":145}]}"#.data(using: .utf8), nil, 200),
+        ]
+
+        var baseline: RefreshSnapshot?
+        for visibilityBits in 0..<8 {
+            preferences.setCardVisible(visibilityBits & 1 != 0, for: .deepseek)
+            preferences.setCardVisible(visibilityBits & 2 != 0, for: .minimax)
+            preferences.setCardVisible(visibilityBits & 4 != 0, for: .openAI)
+            MockURLProtocol.requestedURLs = []
+
+            let cache = await DataFetcher.refreshAll(
+                dbPath: tempDBPath,
+                authPath: tempAuthPath,
+                session: makeSession(),
+                openAIAuthPath: tempAuthPath,
+                cacheSuiteName: tempCachePath,
+                savedBalanceSuiteName: "fixture-\(UUID().uuidString)",
+                credentialResolver: makeResolver(deepseek: "deepseek", minimax: "minimax"),
+                openAIQuotaFetcher: { _, _, _ in expectedQuota }
+            )
+            let snapshot = RefreshSnapshot(cache: cache, requestedURLs: Set(MockURLProtocol.requestedURLs))
+            if let baseline {
+                XCTAssertEqual(snapshot, baseline, "Visibility state \(visibilityBits) must not affect collection outputs")
+            } else {
+                baseline = snapshot
+            }
+        }
+    }
+
     // MARK: - Helpers
 
     func testRefreshMergesWindowsAsPairsInBothCredentialBranchesWithOneFetch() async throws {
@@ -434,6 +538,10 @@ final class DataFetcherTests: XCTestCase {
         return URLSession(configuration: config)
     }
 
+    private func makeResolver(deepseek: String?, minimax: String?) -> ProviderCredentialResolver {
+        ProviderCredentialResolver(store: FixtureCredentialStore(deepseek: deepseek, minimax: minimax), authPath: tempAuthPath)
+    }
+
     private func createDB() {
         var db: OpaquePointer?
         guard sqlite3_open(tempDBPath, &db) == SQLITE_OK, let db = db else {
@@ -493,5 +601,68 @@ final class DataFetcherTests: XCTestCase {
             return
         }
         sqlite3_finalize(statement)
+    }
+}
+
+private actor RefreshCallCounter {
+    private(set) var calls = 0
+
+    func record() {
+        calls += 1
+    }
+}
+
+private actor FixtureCredentialStore: ProviderCredentialStore {
+    private let deepseek: String?
+    private let minimax: String?
+
+    init(deepseek: String?, minimax: String?) {
+        self.deepseek = deepseek
+        self.minimax = minimax
+    }
+
+    func upsert(_ credential: String, for provider: ProviderID) async -> ProviderCredentialStoreError? {
+        .invalidCredential
+    }
+
+    func read(for provider: ProviderID) async -> ProviderCredentialReadResult {
+        switch provider {
+        case .deepseek:
+            deepseek.map(ProviderCredentialReadResult.value) ?? .notFound
+        case .minimax:
+            minimax.map(ProviderCredentialReadResult.value) ?? .notFound
+        case .openAI:
+            .notFound
+        }
+    }
+
+    func remove(for provider: ProviderID) async -> ProviderCredentialStoreError? {
+        nil
+    }
+}
+
+private struct RefreshSnapshot: Equatable {
+    let deepseek: ProviderBalance
+    let minimax: ProviderBalance
+    let minimaxUsage: MiniMaxUsage?
+    let minimaxCredit: Double?
+    let dailyUsage: [DailyUsageRow]
+    let openAIQuota: OpenAIQuota?
+    let hourlyUsage: [HourlyUsageBucket]
+    let deepseekBalanceHistory: [DeepSeekBalanceSnapshot]
+    let openAIQuotaHistory: [OpenAIQuotaSnapshot]
+    let requestedURLs: Set<String>
+
+    init(cache: WidgetCache, requestedURLs: Set<String>) {
+        deepseek = cache.deepseek
+        minimax = cache.minimax
+        minimaxUsage = cache.minimaxUsage
+        minimaxCredit = cache.minimaxCredit
+        dailyUsage = cache.dailyUsage
+        openAIQuota = cache.openAIQuota
+        hourlyUsage = cache.hourlyUsage
+        deepseekBalanceHistory = cache.deepseekBalanceHistory
+        openAIQuotaHistory = cache.openAIQuotaHistory
+        self.requestedURLs = requestedURLs
     }
 }
