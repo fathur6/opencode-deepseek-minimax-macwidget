@@ -43,8 +43,15 @@ struct OpencodeWidgetApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
     var body: some Scene {
-        Settings { EmptyView() }
+        Settings {
+            ProviderSettingsView(preferences: ProviderPresentationContext.preferences)
+        }
     }
+}
+
+@MainActor
+private enum ProviderPresentationContext {
+    static let preferences = ProviderDisplayPreferences()
 }
 
 @MainActor
@@ -97,7 +104,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private func buildMenu() {
         let menu = NSMenu()
         let item = NSMenuItem()
-        let host = NSHostingView(rootView: MenuContent())
+        let host = NSHostingView(rootView: MenuContent(preferences: ProviderPresentationContext.preferences))
 
         host.frame.size = host.fittingSize
         host.autoresizingMask = [.width, .height]
@@ -132,6 +139,24 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 struct MenuContent: View {
     @State private var menuState = MenuBarState.shared
     @State private var chartOffsetHours = 0
+    @State private var preferences: ProviderDisplayPreferences
+
+    init(preferences: ProviderDisplayPreferences = ProviderPresentationContext.preferences) {
+        _preferences = State(initialValue: preferences)
+    }
+
+    enum FooterAction: String {
+        case refresh = "Refresh"
+        case settings = "Settings"
+        case quit = "Quit"
+    }
+
+    static let footerActions: [FooterAction] = [.refresh, .settings, .quit]
+    static let usesNativeSettingsLink = true
+
+    static func visibleCards(preferences: ProviderDisplayPreferences) -> [ProviderID] {
+        ProviderCardLayout.visibleCards(preferences: preferences)
+    }
 
     static func quotaText(_ quota: OpenAIQuota?) -> String {
         remainingText(quota?.remainingPercent)
@@ -185,51 +210,60 @@ struct MenuContent: View {
         let usageBuckets = menuState.hourlyUsage.filter { chartRange.contains($0.hour) }
         let balanceSnapshots = menuState.deepseekBalanceHistory.filter { chartRange.contains($0.hour) }
         let openAISnapshots = menuState.openAIQuotaHistory.filter { chartRange.contains($0.hour) }
+        let visibleCards = Self.visibleCards(preferences: preferences)
 
         VStack(spacing: 0) {
-            HStack(spacing: 8) {
-                balanceCard(title: "DeepSeek", balance: menuState.deepseekBalance) {
-                    NSWorkspace.shared.open(URL(string: "https://platform.deepseek.com/usage")!)
-                }
-                balanceCard(title: "MiniMax", balance: menuState.minimaxBalance) {
-                    NSWorkspace.shared.open(URL(string: "https://platform.minimax.io/console/recharge-records?operation=RECHARGE&type=SUCCESS")!)
-                }
-            }
-            .padding(.horizontal, 12)
-            .padding(.top, 10)
-
-            Button(action: {
-                NSWorkspace.shared.open(URL(string: "https://chatgpt.com/usage")!)
-            }) {
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack {
-                        Text("OpenAI").font(.caption).foregroundColor(.secondary)
-                        Spacer()
-                        Text(Self.estimatedCostText(menuState.openAIEstimatedCost))
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                            .monospacedDigit()
+            if visibleCards.contains(.deepseek) || visibleCards.contains(.minimax) {
+                HStack(spacing: 8) {
+                    if visibleCards.contains(.deepseek) {
+                        balanceCard(title: "DeepSeek", balance: menuState.deepseekBalance) {
+                            NSWorkspace.shared.open(URL(string: "https://platform.deepseek.com/usage")!)
+                        }
                     }
-                    ForEach(Self.quotaRows(menuState.openAIQuota)) { row in
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(row.label).font(.caption).foregroundColor(.secondary)
-                            Text(Self.remainingText(row.remainingPercent))
-                                .font(.headline).fontWeight(.semibold).monospacedDigit()
-                            QuotaResetBar(remainingPercent: row.remainingPercent, resetDate: row.resetDate, cycleHours: row.cycleHours)
-                                .padding(.top, 2)
-                            Text(Self.resetText(row.resetDate))
-                                .font(.caption2).foregroundColor(.secondary)
+                    if visibleCards.contains(.minimax) {
+                        balanceCard(title: "MiniMax", balance: menuState.minimaxBalance) {
+                            NSWorkspace.shared.open(URL(string: "https://platform.minimax.io/console/recharge-records?operation=RECHARGE&type=SUCCESS")!)
                         }
                     }
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(8)
+                .padding(.horizontal, 12)
+                .padding(.top, 10)
             }
-            .buttonStyle(.plain)
-            .background(Color.primary.opacity(0.06))
-            .cornerRadius(6)
-            .padding(.horizontal, 12)
-            .padding(.top, 8)
+
+            if visibleCards.contains(.openAI) {
+                Button(action: {
+                    NSWorkspace.shared.open(URL(string: "https://chatgpt.com/usage")!)
+                }) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack {
+                            Text("OpenAI").font(.caption).foregroundColor(.secondary)
+                            Spacer()
+                            Text(Self.estimatedCostText(menuState.openAIEstimatedCost))
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                                .monospacedDigit()
+                        }
+                        ForEach(Self.quotaRows(menuState.openAIQuota)) { row in
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(row.label).font(.caption).foregroundColor(.secondary)
+                                Text(Self.remainingText(row.remainingPercent))
+                                    .font(.headline).fontWeight(.semibold).monospacedDigit()
+                                QuotaResetBar(remainingPercent: row.remainingPercent, resetDate: row.resetDate, cycleHours: row.cycleHours)
+                                    .padding(.top, 2)
+                                Text(Self.resetText(row.resetDate))
+                                    .font(.caption2).foregroundColor(.secondary)
+                            }
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(8)
+                }
+                .buttonStyle(.plain)
+                .background(Color.primary.opacity(0.06))
+                .cornerRadius(6)
+                .padding(.horizontal, 12)
+                .padding(.top, 8)
+            }
 
             HStack {
                 Button {
@@ -271,6 +305,13 @@ struct MenuContent: View {
             VStack(spacing: 2) {
                 Button("Refresh") { refreshData() }
                     .buttonStyle(.plain).padding(.horizontal, 12).padding(.vertical, 4).keyboardShortcut("r")
+                Divider()
+                SettingsLink {
+                    Text("Settings")
+                }
+                .buttonStyle(.plain)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 4)
                 Divider()
                 Button("Quit") { NSApp.terminate(nil) }
                     .buttonStyle(.plain).padding(.horizontal, 12).padding(.vertical, 4).keyboardShortcut("q")
