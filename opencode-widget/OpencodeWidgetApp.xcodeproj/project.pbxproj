@@ -7,9 +7,12 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		00F571155B463D7F0B0948B7 /* ProviderCredentialResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = C81D6CB5A6E5D9EA8F8967B4 /* ProviderCredentialResolver.swift */; };
 		01F77A1B1F071BE48193AF5A /* UsageHistoryFetcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F719CE050DFA461FB66FEC8 /* UsageHistoryFetcher.swift */; };
 		241926188A6E505F83C4EE7B /* DeepSeekRemainingChart.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD25B4F10876E303DB626E74 /* DeepSeekRemainingChart.swift */; };
+		34564DE4759F053D255EE581 /* ProviderSetupCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59B74185897351685BDB9AAC /* ProviderSetupCoordinator.swift */; };
 		4F7BE9F4689252E46690542A /* ChartWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = D49D22C70D4C9FA58866CDF4 /* ChartWindow.swift */; };
+		50C28DE96439325DE5198B94 /* ProviderSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 059695BD00AB2842E9B8F099 /* ProviderSettingsView.swift */; };
 		54803B2FD95DE4636061679D /* QuotaMonthlyReporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D0425B2060EF56D0B385252 /* QuotaMonthlyReporter.swift */; };
 		56E338E3EEB1E303883F6A7E /* UsageHistoryChart.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E00851A8A0E864B3CA65306 /* UsageHistoryChart.swift */; };
 		6DCAA42AF8C20B9FF53AC509 /* Resources in Resources */ = {isa = PBXBuildFile; fileRef = 51F49427C2E704920BB39BC6 /* Resources */; };
@@ -20,8 +23,10 @@
 		84351CF63C07C3F339734BE3 /* OpencodeWidgetApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8D98E2BDD07CB050712D068 /* OpencodeWidgetApp.swift */; };
 		8EFBBB6AB74D674F77C06142 /* QuotaResetBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19E8F206D00F9FF5F8046316 /* QuotaResetBar.swift */; };
 		976BEED16D16E7D9A728DFD8 /* QuotaSnapshotRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = D650BB94EC0BBFC2C7DB3D2A /* QuotaSnapshotRow.swift */; };
+		9CED48741668B4A4889EC8B8 /* ProviderCredentialStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F186BCE7084D37E7240C12B /* ProviderCredentialStore.swift */; };
 		A495C0C20607B07B0DDCF31E /* QuotaLedgerService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D7C764A8EA855A5C02F27E8 /* QuotaLedgerService.swift */; };
 		B8D49EE8A1706B2E80260EA3 /* OpenAIQuotaFetcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC128F7F9E1CBA252DDF54E4 /* OpenAIQuotaFetcher.swift */; };
+		BFD63611C9099FB0FE12F3BD /* ProviderDisplayPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = 68ACA9AECFC421DF2FE6E3FF /* ProviderDisplayPreferences.swift */; };
 		D3C4003C82352CDD5F4E476D /* DataStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0912346CB928974051E1022E /* DataStore.swift */; };
 		EFDA1C3B50622DE2F12DE4BD /* AppIcon.icns in Resources */ = {isa = PBXBuildFile; fileRef = 12DC161720455DF4EC7AA3EF /* AppIcon.icns */; };
 		F107D2E927D2FD958357A57B /* DataFetcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 711320B0D3258720311ED9F3 /* DataFetcher.swift */; };
@@ -29,19 +34,24 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		059695BD00AB2842E9B8F099 /* ProviderSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderSettingsView.swift; sourceTree = "<group>"; };
 		0912346CB928974051E1022E /* DataStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataStore.swift; sourceTree = "<group>"; };
 		0D7C764A8EA855A5C02F27E8 /* QuotaLedgerService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuotaLedgerService.swift; sourceTree = "<group>"; };
 		12DC161720455DF4EC7AA3EF /* AppIcon.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = AppIcon.icns; sourceTree = "<group>"; };
 		19E8F206D00F9FF5F8046316 /* QuotaResetBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuotaResetBar.swift; sourceTree = "<group>"; };
 		1D0425B2060EF56D0B385252 /* QuotaMonthlyReporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuotaMonthlyReporter.swift; sourceTree = "<group>"; };
 		219662771A29BCB469AD2543 /* DeepSeekUsageCollector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeepSeekUsageCollector.swift; sourceTree = "<group>"; };
+		2F186BCE7084D37E7240C12B /* ProviderCredentialStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderCredentialStore.swift; sourceTree = "<group>"; };
 		51F49427C2E704920BB39BC6 /* Resources */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Resources; path = OpencodeWidgetApp/Resources; sourceTree = SOURCE_ROOT; };
+		59B74185897351685BDB9AAC /* ProviderSetupCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderSetupCoordinator.swift; sourceTree = "<group>"; };
 		5D411F9C4A2DCADC9505ECCB /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
+		68ACA9AECFC421DF2FE6E3FF /* ProviderDisplayPreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderDisplayPreferences.swift; sourceTree = "<group>"; };
 		6E00851A8A0E864B3CA65306 /* UsageHistoryChart.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageHistoryChart.swift; sourceTree = "<group>"; };
 		6F74B560C20096D25F2577DB /* AuthReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthReader.swift; sourceTree = "<group>"; };
 		711320B0D3258720311ED9F3 /* DataFetcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataFetcher.swift; sourceTree = "<group>"; };
 		8F719CE050DFA461FB66FEC8 /* UsageHistoryFetcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageHistoryFetcher.swift; sourceTree = "<group>"; };
 		BD25B4F10876E303DB626E74 /* DeepSeekRemainingChart.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeepSeekRemainingChart.swift; sourceTree = "<group>"; };
+		C81D6CB5A6E5D9EA8F8967B4 /* ProviderCredentialResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderCredentialResolver.swift; sourceTree = "<group>"; };
 		D0F26C5214DD65B6A022CB5E /* OpenAIUsageCollector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenAIUsageCollector.swift; sourceTree = "<group>"; };
 		D49D22C70D4C9FA58866CDF4 /* ChartWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChartWindow.swift; sourceTree = "<group>"; };
 		D650BB94EC0BBFC2C7DB3D2A /* QuotaSnapshotRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuotaSnapshotRow.swift; sourceTree = "<group>"; };
@@ -63,6 +73,8 @@
 				FC128F7F9E1CBA252DDF54E4 /* OpenAIQuotaFetcher.swift */,
 				D0F26C5214DD65B6A022CB5E /* OpenAIUsageCollector.swift */,
 				D8D98E2BDD07CB050712D068 /* OpencodeWidgetApp.swift */,
+				059695BD00AB2842E9B8F099 /* ProviderSettingsView.swift */,
+				59B74185897351685BDB9AAC /* ProviderSetupCoordinator.swift */,
 				0D7C764A8EA855A5C02F27E8 /* QuotaLedgerService.swift */,
 				19E8F206D00F9FF5F8046316 /* QuotaResetBar.swift */,
 				6E00851A8A0E864B3CA65306 /* UsageHistoryChart.swift */,
@@ -87,6 +99,9 @@
 				6F74B560C20096D25F2577DB /* AuthReader.swift */,
 				0912346CB928974051E1022E /* DataStore.swift */,
 				5D411F9C4A2DCADC9505ECCB /* Models.swift */,
+				C81D6CB5A6E5D9EA8F8967B4 /* ProviderCredentialResolver.swift */,
+				2F186BCE7084D37E7240C12B /* ProviderCredentialStore.swift */,
+				68ACA9AECFC421DF2FE6E3FF /* ProviderDisplayPreferences.swift */,
 			);
 			name = OpencodeWidgetShared;
 			path = Sources/OpencodeWidgetShared;
@@ -212,6 +227,11 @@
 				B8D49EE8A1706B2E80260EA3 /* OpenAIQuotaFetcher.swift in Sources */,
 				7B4D1F46BEC7BD1429639AFB /* OpenAIUsageCollector.swift in Sources */,
 				84351CF63C07C3F339734BE3 /* OpencodeWidgetApp.swift in Sources */,
+				00F571155B463D7F0B0948B7 /* ProviderCredentialResolver.swift in Sources */,
+				9CED48741668B4A4889EC8B8 /* ProviderCredentialStore.swift in Sources */,
+				BFD63611C9099FB0FE12F3BD /* ProviderDisplayPreferences.swift in Sources */,
+				50C28DE96439325DE5198B94 /* ProviderSettingsView.swift in Sources */,
+				34564DE4759F053D255EE581 /* ProviderSetupCoordinator.swift in Sources */,
 				FE3F6BC76E910466ECFE4FFA /* QuotaLedger.swift in Sources */,
 				A495C0C20607B07B0DDCF31E /* QuotaLedgerService.swift in Sources */,
 				54803B2FD95DE4636061679D /* QuotaMonthlyReporter.swift in Sources */,

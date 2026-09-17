@@ -66,11 +66,29 @@ final class ProviderSetupCoordinator {
 
     private(set) var codexStatus: CodexConnectionStatus
 
+    convenience init() {
+        self.init(
+            validator: DataFetcherProviderSetupValidator(),
+            credentialStore: KeychainProviderCredentialStore(),
+            pasteboardWriter: SystemProviderPasteboardWriter(),
+            codexAvailability: { AuthReader.hasUsableCodexSession() }
+        )
+    }
+
+    convenience init(validator: any ProviderSetupValidator, credentialStore: any ProviderCredentialStore) {
+        self.init(
+            validator: validator,
+            credentialStore: credentialStore,
+            pasteboardWriter: SystemProviderPasteboardWriter(),
+            codexAvailability: { AuthReader.hasUsableCodexSession() }
+        )
+    }
+
     init(
-        validator: any ProviderSetupValidator = DataFetcherProviderSetupValidator(),
-        credentialStore: any ProviderCredentialStore = KeychainProviderCredentialStore(),
-        pasteboardWriter: any ProviderPasteboardWriter = SystemProviderPasteboardWriter(),
-        codexAvailability: @escaping () -> Bool = { AuthReader.hasUsableCodexSession() }
+        validator: any ProviderSetupValidator,
+        credentialStore: any ProviderCredentialStore,
+        pasteboardWriter: any ProviderPasteboardWriter,
+        codexAvailability: @escaping () -> Bool
     ) {
         self.validator = validator
         self.credentialStore = credentialStore

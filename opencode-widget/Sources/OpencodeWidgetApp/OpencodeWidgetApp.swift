@@ -141,7 +141,8 @@ struct MenuContent: View {
     @State private var chartOffsetHours = 0
     @State private var preferences: ProviderDisplayPreferences
 
-    init(preferences: ProviderDisplayPreferences = ProviderPresentationContext.preferences) {
+    @MainActor
+    init(preferences: ProviderDisplayPreferences) {
         _preferences = State(initialValue: preferences)
     }
 

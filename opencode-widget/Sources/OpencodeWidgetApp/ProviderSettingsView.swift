@@ -10,10 +10,13 @@ struct ProviderSettingsView: View {
     @State private var expandedProviders: Set<ProviderID> = []
     @State private var candidateKeys: [ProviderID: String] = [:]
 
-    init(
-        preferences: ProviderDisplayPreferences,
-        coordinator: ProviderSetupCoordinator = ProviderSetupCoordinator()
-    ) {
+    @MainActor
+    init(preferences: ProviderDisplayPreferences) {
+        self.init(preferences: preferences, coordinator: ProviderSetupCoordinator())
+    }
+
+    @MainActor
+    init(preferences: ProviderDisplayPreferences, coordinator: ProviderSetupCoordinator) {
         _preferences = State(initialValue: preferences)
         _coordinator = State(initialValue: coordinator)
     }
