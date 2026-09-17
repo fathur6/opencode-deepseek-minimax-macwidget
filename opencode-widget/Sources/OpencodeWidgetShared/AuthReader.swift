@@ -38,6 +38,32 @@ public enum AuthReader {
         return AuthCredentials(deepseekKey: deepseekKey, minimaxKey: minimaxKey)
     }
 
+    /// Reads one legacy OpenCode provider key for compatibility without mutating its auth file.
+    public static func readLegacyKey(
+        for provider: ProviderID,
+        authPath: String = "\(NSHomeDirectory())/.local/share/opencode/auth.json"
+    ) -> String? {
+        let providerName: String
+        switch provider {
+        case .deepseek:
+            providerName = "deepseek"
+        case .minimax:
+            providerName = "minimax"
+        case .openAI:
+            return nil
+        }
+
+        let url = URL(fileURLWithPath: authPath)
+        guard let data = try? Data(contentsOf: url),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let providerAuth = json[providerName] as? [String: Any],
+              let key = providerAuth["key"] as? String,
+              !key.isEmpty else {
+            return nil
+        }
+        return key
+    }
+
     /// Reads the OAuth token produced by `codex login`. The token is returned
     /// only to the caller and is never logged or persisted by this module.
     public static func readOpenAICredentials(authPath: String = "\(NSHomeDirectory())/.codex/auth.json") -> OpenAIAuthCredentials? {
@@ -54,5 +80,17 @@ public enum AuthReader {
             accessToken: accessToken,
             accountID: tokens["account_id"] as? String
         )
+    }
+
+    /// Checks only whether a non-empty Codex OAuth access token is available.
+    public static func hasUsableCodexSession(authPath: String = "\(NSHomeDirectory())/.codex/auth.json") -> Bool {
+        let url = URL(fileURLWithPath: authPath)
+        guard let data = try? Data(contentsOf: url),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let tokens = json["tokens"] as? [String: Any],
+              let accessToken = tokens["access_token"] as? String else {
+            return false
+        }
+        return !accessToken.isEmpty
     }
 }

@@ -31,7 +31,7 @@ final class ProviderCredentialResolverTests: XCTestCase {
     func testKeychainValueOverridesOnlyItsMatchingLegacyCredential() async throws {
         try writeLegacyCredentials()
         let store = InMemoryProviderCredentialStore()
-        await store.upsert("synthetic-keychain-deepseek", for: .deepseek)
+        _ = await store.upsert("synthetic-keychain-deepseek", for: .deepseek)
         let resolver = ProviderCredentialResolver(store: store, authPath: legacyAuthURL.path)
 
         let deepSeek = await resolver.resolve(.deepseek)
@@ -48,22 +48,28 @@ final class ProviderCredentialResolverTests: XCTestCase {
             authPath: legacyAuthURL.path
         )
 
-        XCTAssertTrue(await resolver.resolve(.deepseek) == "synthetic-legacy-deepseek")
-        XCTAssertTrue(await resolver.resolve(.minimax) == "synthetic-legacy-minimax")
+        let deepSeek = await resolver.resolve(.deepseek)
+        let miniMax = await resolver.resolve(.minimax)
+
+        XCTAssertTrue(deepSeek == "synthetic-legacy-deepseek")
+        XCTAssertTrue(miniMax == "synthetic-legacy-minimax")
     }
 
     func testRemovingOneKeychainCredentialRestoresOnlyThatLegacyFallbackWithoutMutatingFile() async throws {
         try writeLegacyCredentials()
         let originalLegacyBytes = try Data(contentsOf: legacyAuthURL)
         let store = InMemoryProviderCredentialStore()
-        await store.upsert("synthetic-keychain-deepseek", for: .deepseek)
-        await store.upsert("synthetic-keychain-minimax", for: .minimax)
+        _ = await store.upsert("synthetic-keychain-deepseek", for: .deepseek)
+        _ = await store.upsert("synthetic-keychain-minimax", for: .minimax)
         let resolver = ProviderCredentialResolver(store: store, authPath: legacyAuthURL.path)
 
-        await store.remove(for: .deepseek)
+        _ = await store.remove(for: .deepseek)
 
-        XCTAssertTrue(await resolver.resolve(.deepseek) == "synthetic-legacy-deepseek")
-        XCTAssertTrue(await resolver.resolve(.minimax) == "synthetic-keychain-minimax")
+        let deepSeek = await resolver.resolve(.deepseek)
+        let miniMax = await resolver.resolve(.minimax)
+
+        XCTAssertTrue(deepSeek == "synthetic-legacy-deepseek")
+        XCTAssertTrue(miniMax == "synthetic-keychain-minimax")
         XCTAssertEqual(try Data(contentsOf: legacyAuthURL), originalLegacyBytes)
     }
 
@@ -73,16 +79,18 @@ final class ProviderCredentialResolverTests: XCTestCase {
             authPath: legacyAuthURL.path
         )
 
-        XCTAssertNil(await resolver.resolve(.deepseek))
+        let missingCredential = await resolver.resolve(.deepseek)
+        XCTAssertNil(missingCredential)
         try Data("not-json".utf8).write(to: legacyAuthURL)
-        XCTAssertNil(await resolver.resolve(.minimax))
+        let invalidCredential = await resolver.resolve(.minimax)
+        XCTAssertNil(invalidCredential)
     }
 
     func testResolutionDoesNotPersistSyntheticCredentialOutsideKeychain() async throws {
         try writeLegacyCredentials()
         let syntheticCredential = "synthetic-keychain-deepseek"
         let store = InMemoryProviderCredentialStore()
-        await store.upsert(syntheticCredential, for: .deepseek)
+        _ = await store.upsert(syntheticCredential, for: .deepseek)
         let resolver = ProviderCredentialResolver(store: store, authPath: legacyAuthURL.path)
         let cacheFixtureURL = temporaryDirectory.appendingPathComponent("widget-data.json")
         try Data("{\"cache\":true}".utf8).write(to: cacheFixtureURL)
@@ -92,7 +100,7 @@ final class ProviderCredentialResolverTests: XCTestCase {
         let serializedDefaults = String(describing: defaults.dictionaryRepresentation())
         let cacheFixture = try Data(contentsOf: cacheFixtureURL)
         XCTAssertFalse(serializedDefaults.contains(syntheticCredential))
-        XCTAssertFalse(cacheFixture.contains(Data(syntheticCredential.utf8)))
+        XCTAssertNil(cacheFixture.range(of: Data(syntheticCredential.utf8)))
     }
 
     private func writeLegacyCredentials() throws {
@@ -109,15 +117,20 @@ final class ProviderCredentialResolverTests: XCTestCase {
 private actor InMemoryProviderCredentialStore: ProviderCredentialStore {
     private var credentials: [ProviderID: String] = [:]
 
-    func upsert(_ credential: String, for provider: ProviderID) {
+    func upsert(_ credential: String, for provider: ProviderID) -> ProviderCredentialStoreError? {
         credentials[provider] = credential
+        return nil
     }
 
-    func read(for provider: ProviderID) -> String? {
-        credentials[provider]
+    func read(for provider: ProviderID) -> ProviderCredentialReadResult {
+        guard let credential = credentials[provider] else {
+            return .notFound
+        }
+        return .value(credential)
     }
 
-    func remove(for provider: ProviderID) {
+    func remove(for provider: ProviderID) -> ProviderCredentialStoreError? {
         credentials.removeValue(forKey: provider)
+        return nil
     }
 }
