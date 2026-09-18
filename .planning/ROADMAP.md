@@ -86,7 +86,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4
+Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -94,6 +94,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | 2. Reset Timeline Computation | TBD | Not started | - |
 | 3. Usage Bar & Marker UI | TBD | Not started | - |
 | 4. Lifecycle & Polish | TBD | Not started | - |
+| 5. Settings: Provider Display Preferences | 5/5 | Complete | 2026-09-18 |
 
 ### Phase 5: Settings: Provider Display Preferences
 
