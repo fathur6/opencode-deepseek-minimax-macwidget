@@ -5,8 +5,8 @@ milestone_name: milestone
 current_phase: 05
 current_phase_name: settings-provider-display-preferences
 status: complete
-stopped_at: Phase 05 complete — verified and human gate approved
-last_updated: "2026-09-18T11:48:17.828Z"
+stopped_at: Completed quick task 260918-rkx v1.5.0 release and deployment
+last_updated: "2026-09-18T13:06:48.374Z"
 last_activity: 2026-09-18
 last_activity_desc: Phase 05 complete
 progress:
@@ -87,6 +87,7 @@ Progress: [██████████] 100%
 - [Phase 05]: Treat XCTest as the contract proof and reserve native macOS window focus, live Keychain persistence, and remote provider accounts for a single observed human gate.
 - [Phase 05]: Inspect Keychain metadata only; never copy, render, log, or persist secret values in verification evidence.
 - [Phase 05]: Record the approved human verification explicitly rather than weakening any requirement when a native behavior cannot be automated.
+- [Phase Quick 260918-rkx]: Release provenance uses only the freshly downloaded GitHub asset after SHA-256 comparison with the exact locally verified package. — Keeps the public package, GitHub release, and deployed bundle traceably identical without exposing local data.
 
 ### Pending Todos
 
@@ -110,9 +111,10 @@ None yet.
 |----|-------------|-----------|--------|
 | 260816-v97 | Add and deploy 168-hour OpenAI/DeepSeek usage chart | 2026-08-16 | Complete |
 | 260912-ns1 | DAF-23 add OpenAI 5-hour quota bar, preserve ledger, ship v1.3.0 | 2026-09-12 | Complete |
+| 260918-rkx | Release Phase 5 Settings and provider credentials as v1.5.0/build 6 | 2026-09-18 | Complete |
 
 ## Session Continuity
 
-Last session: 2026-09-18T11:43:59.209Z
-Stopped at: Completed 05-05-PLAN.md and approved Phase 05 verification
+Last session: 2026-09-18T13:06:27.312Z
+Stopped at: Completed quick task 260918-rkx v1.5.0 release and deployment
 Resume file: None
