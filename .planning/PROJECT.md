@@ -19,6 +19,9 @@ Show the user their remaining AI budget and when it resets, at a glance from the
 - ✓ 15-minute auto-refresh — existing
 - ✓ B&W monochrome design — existing
 - ✓ ChatGPT Plus quota card showing remaining % and reset date — existing
+- ✓ Native Settings window (`Refresh` → `Settings` → `Quit`) with independent, persisted, default-visible provider-card toggles and charts-only mode — Validated in Phase 5: Settings: Provider Display Preferences
+- ✓ Keychain-first DeepSeek/MiniMax credential setup with validate-before-save and read-only `auth.json` fallback, so the DMG needs no existing OpenCode install — Validated in Phase 5: Settings: Provider Display Preferences
+- ✓ Codex OAuth availability status with copy-only `codex login` guidance; no platform API key or in-app authentication — Validated in Phase 5: Settings: Provider Display Preferences
 
 ### Active
 
@@ -37,7 +40,7 @@ Show the user their remaining AI budget and when it resets, at a glance from the
 ## Context
 
 - Original inspiration: minimax-usage-checker by AungMyoKyaw; Lobe Icons for brand icons.
-- API keys read from OpenCode's auth config at `~/.local/share/opencode/auth.json` (in-memory only).
+- API keys resolve Keychain-first (app-managed generic-password items) with a read-only fallback to OpenCode's `~/.local/share/opencode/auth.json` (never written).
 - Usage history aggregated from `~/.local/share/opencode/opencode.db` (SQLite, `session` table, 6-day window).
 - Build: `cd opencode-widget && xcodegen generate && xcodebuild -scheme OpencodeWidgetApp -configuration Debug build`.
 - ChatGPT Plus quota card already shows "99% remaining" and "Reset Aug 15" — this phase adds the reset-time reading and the animated usage bar.
@@ -58,4 +61,4 @@ Show the user their remaining AI budget and when it resets, at a glance from the
 | Bar shows usage progress; vertical marker = hours elapsed since reset | User-specified composition (168h − rounded remaining hours) | — Pending |
 
 ---
-*Last updated: 2026-08-09 after initialization*
+*Last updated: 2026-09-18 after Phase 5: Settings: Provider Display Preferences*
