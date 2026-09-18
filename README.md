@@ -83,6 +83,17 @@ larger spikes. Accessibility values still report real token counts.
 
 See [docs/releases/v1.4.0.md](docs/releases/v1.4.0.md) for release notes.
 
+### v1.5.0: Native Provider Settings
+
+The menu footer now includes **Settings** between Refresh and Quit, opening a
+single native macOS Providers Settings scene. Configure which provider cards are
+visible, set up DeepSeek and MiniMax credentials with validation before a
+Keychain save, and view the availability of the existing Codex session for
+ChatGPT Plus. Card visibility changes only the presentation: refreshes, charts,
+cache, and the local ledger continue to run unchanged.
+
+See [docs/releases/v1.5.0.md](docs/releases/v1.5.0.md) for release notes.
+
 
 ## API Approach
 
