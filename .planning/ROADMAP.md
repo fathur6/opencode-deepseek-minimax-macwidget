@@ -100,7 +100,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 **Goal:** Users can configure visible provider cards and securely connect their own provider accounts from a native Settings window, making the downloadable DMG usable without an existing OpenCode installation.
 **Requirements**: SETTINGS-01, SETTINGS-02, SETTINGS-03, SETTINGS-04, SETTINGS-05, SETTINGS-06, SETTINGS-07
 **Depends on:** Phase 4
-**Plans:** 4/5 plans executed
+**Plans:** 5/5 plans complete
 
 Plans:
 **Wave 1**
@@ -115,4 +115,4 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 05-05-PLAN.md — Automated and live native macOS verification gate
+- [x] 05-05-PLAN.md — Automated and live native macOS verification gate

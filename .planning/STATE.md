@@ -4,17 +4,17 @@ milestone: v1.0
 milestone_name: milestone
 current_phase: 05
 current_phase_name: settings-provider-display-preferences
-status: executing
-stopped_at: Completed 05-04-PLAN.md
-last_updated: "2026-09-17T23:05:28.147Z"
-last_activity: 2026-09-17
-last_activity_desc: Completed 05-04 native provider settings
+status: verifying
+stopped_at: Completed 05-05-PLAN.md and approved Phase 05 verification
+last_updated: "2026-09-18T11:44:24.506Z"
+last_activity: 2026-09-18
+last_activity_desc: Completed 05-05 native verification gate
 progress:
   total_phases: 5
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 5
-  completed_plans: 4
-  percent: 80
+  completed_plans: 5
+  percent: 20
 ---
 
 # Project State
@@ -28,30 +28,30 @@ See: .planning/PROJECT.md (updated 2026-08-09)
 
 ## Current Position
 
-Phase: 05 (settings-provider-display-preferences) — EXECUTING
+Phase: 05 (settings-provider-display-preferences) — COMPLETE
 Plan: 5 of 5
-Status: Ready to execute
-Last activity: 2026-09-17 — Completed 05-04 native provider settings
+Status: Phase complete — verified (human gate approved 2026-09-18)
+Last activity: 2026-09-18 — Completed 05-05 verification gate
 
-Progress: [████████░░] 80%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 4
+- Total plans completed: 5
 - Average duration: 6 min
-- Total execution time: 26 min
+- Total execution time: 32 min
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 05 | 4 | 26 min | 6 min |
+| 05 | 5 | 32 min | 6 min |
 
 **Recent Trend:**
 
-- Last 4 plans: 2 min, 12 min, 4 min, 8 min
+- Last 5 plans: 2 min, 12 min, 4 min, 8 min, 6 min
 - Trend: Steady
 
 *Updated after each plan completion*
@@ -59,6 +59,7 @@ Progress: [████████░░] 80%
 | Phase 05 P02 | 12 min | 2 tasks | 4 files |
 | Phase 05 P03 | 4 min | 2 tasks | 2 files |
 | Phase 05 P04 | 8 min | 2 tasks | 5 files |
+| Phase 05 P05 | 6 min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -83,6 +84,9 @@ Progress: [████████░░] 80%
 - [Phase 05]: Use SwiftUI Settings and SettingsLink rather than custom AppKit settings-window ownership.
 - [Phase 05]: Keep candidate credentials local to validation and Keychain upsert calls; observable state contains only redacted categories.
 - [Phase 05]: Make display preferences observable so Settings toggles update the already-open menu immediately while persistence remains presentation-only.
+- [Phase 05]: Treat XCTest as the contract proof and reserve native macOS window focus, live Keychain persistence, and remote provider accounts for a single observed human gate.
+- [Phase 05]: Inspect Keychain metadata only; never copy, render, log, or persist secret values in verification evidence.
+- [Phase 05]: Record the approved human verification explicitly rather than weakening any requirement when a native behavior cannot be automated.
 
 ### Pending Todos
 
@@ -92,7 +96,7 @@ None yet.
 
 - [Phase 1] `wham/usage` is undocumented — schema/auth drift risk; Codable plus stale fallback mitigates it.
 - [Phase 3] Marker visual composition and locale time format require user acceptance validation.
-- [Phase 05] Native Settings focus reuse and compact-scroll layout need manual macOS UAT in the final plan.
+- [Phase 05] RESOLVED 2026-09-18: Native Settings focus reuse, bounded scrolling, Keychain setup/rollback, legacy fallback, and copy-only Codex behavior approved by Aman in the 05-05 human gate.
 
 ## Deferred Items
 
@@ -109,6 +113,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-09-17T23:05:28.147Z
-Stopped at: Completed 05-04-PLAN.md
+Last session: 2026-09-18T11:43:59.209Z
+Stopped at: Completed 05-05-PLAN.md and approved Phase 05 verification
 Resume file: None
