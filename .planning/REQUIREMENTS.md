@@ -23,6 +23,16 @@
 - [ ] **UIUX-04**: Reset readout extended to include time of day (e.g. "Reset Aug 15, 3:08 PM"); confirm local timezone rendering and "3.08 pm" dot-format style.
 - [ ] **UIUX-05**: Stale-data resilience — a failed refresh never blanks a reading; last-known values persist.
 
+### Settings (SETTINGS)
+
+- [ ] **SETTINGS-01**: The menu footer orders `Refresh`, `Settings`, then `Quit`; Settings opens or focuses one native macOS Settings window.
+- [ ] **SETTINGS-02**: Independent DeepSeek, MiniMax, and OpenAI card visibility toggles take effect immediately and persist across relaunch, defaulting to visible for missing, malformed, or legacy preference stores.
+- [ ] **SETTINGS-03**: The popover renders only enabled cards in the fixed order DeepSeek, MiniMax, OpenAI, and supports a charts-only layout when all cards are hidden.
+- [ ] **SETTINGS-04**: Card visibility affects presentation only; polling, cache, ledger, and chart inputs stay unchanged.
+- [ ] **SETTINGS-05**: DeepSeek and MiniMax credentials resolve independently with a macOS Keychain credential preferred over a read-only fallback to their existing OpenCode `auth.json` key, which is never modified.
+- [ ] **SETTINGS-06**: Settings validates each entered DeepSeek/MiniMax key against that provider before saving it to Keychain; a failed validation never replaces a working credential, and secrets are never logged, cached, or persisted outside Keychain.
+- [ ] **SETTINGS-07**: Settings reports Codex OAuth session availability (Connected / Not connected) without exposing the token, and copies the fixed `codex login` command without executing it.
+
 ## v2 Requirements (deferred)
 
 - [ ] **QUOTA-05**: Derive cycle length from successive observed `reset_at` values, falling back to 168h.
@@ -55,3 +65,10 @@
 | UIUX-03 | Phase 3 | Not started |
 | UIUX-04 | Phase 3 | Not started |
 | UIUX-05 | Phase 4 | Not started |
+| SETTINGS-01 | Phase 5 | Not started |
+| SETTINGS-02 | Phase 5 | Not started |
+| SETTINGS-03 | Phase 5 | Not started |
+| SETTINGS-04 | Phase 5 | Not started |
+| SETTINGS-05 | Phase 5 | Not started |
+| SETTINGS-06 | Phase 5 | Not started |
+| SETTINGS-07 | Phase 5 | Not started |
